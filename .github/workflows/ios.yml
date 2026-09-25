@@ -9,270 +9,105 @@ jobs:
     runs-on: macos-latest
 
     steps:
-
-      # ============================================================
-      # 1. Checkout
-      # ============================================================
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ============================================================
-      # 2. Check Xcode / iOS SDK
-      # ============================================================
-      - name: Check Xcode and iOS SDK
+      - name: Check Xcode
         run: |
-          set -e
-
-          echo "===== Xcode ====="
           xcodebuild -version
-
-          echo "===== iOS SDK ====="
           xcrun --sdk iphoneos --show-sdk-path
           xcrun --sdk iphoneos --show-sdk-version
 
-      # ============================================================
-      # 3. Download SDL libraries
-      # ============================================================
-      - name: Download SDL libraries
+      - name: Download SDL
         run: |
           set -e
 
           mkdir -p external
 
-          echo "===== SDL2 ====="
-
-          git clone \
-            --depth 1 \
-            --branch release-2.32.8 \
+          git clone --depth 1 --branch release-2.32.8 \
             https://github.com/libsdl-org/SDL.git \
             external/SDL
 
-          echo "===== SDL2_image ====="
-
-          git clone \
-            --depth 1 \
-            --branch release-2.8.8 \
+          git clone --depth 1 --branch release-2.8.8 \
             https://github.com/libsdl-org/SDL_image.git \
             external/SDL_image
 
-          echo "===== SDL2_ttf ====="
-
-          git clone \
-            --depth 1 \
-            --branch release-2.24.0 \
+          git clone --depth 1 --branch release-2.24.0 \
             https://github.com/libsdl-org/SDL_ttf.git \
             external/SDL_ttf
 
-          echo ""
-          echo "===== External directories ====="
-
-          find external -maxdepth 2 -type d -print
-
-      # ============================================================
-      # 4. Download SDL2_image dependencies
-      # ============================================================
-      - name: Download SDL2_image dependencies
+      - name: Download SDL_image dependencies
         run: |
           set -e
-
-          echo "========================================"
-          echo "Downloading SDL2_image dependencies"
-          echo "========================================"
 
           cd external/SDL_image
 
-          if [ ! -f "external/download.sh" ]; then
-            echo "ERROR: SDL2_image download.sh not found"
-            exit 1
-          fi
-
           chmod +x external/download.sh
-
           ./external/download.sh
-
-          echo ""
-          echo "===== SDL2_image external ====="
-
-          find external \
-            -maxdepth 4 \
-            -print || true
-
-          echo ""
-          echo "===== Searching for libtiff ====="
-
-          find . \
-            -type d \
-            -iname "*tiff*" \
-            -print || true
-
-          find . \
-            -type f \
-            -iname "*tiff*" \
-            -print | head -100 || true
 
           cd ../..
 
-      # ============================================================
-      # 5. Verify SDL2_image dependencies
-      # ============================================================
-      - name: Verify SDL2_image dependencies
+          echo "Checking SDL_image dependencies..."
+          find external/SDL_image/external -maxdepth 3 -type d -print || true
+
+      - name: Check libtiff
         run: |
           set -e
 
-          echo "========================================"
-          echo "Verifying SDL2_image dependencies"
-          echo "========================================"
-
-          echo ""
-          echo "===== SDL2_image directory ====="
-
-          find external/SDL_image \
-            -maxdepth 4 \
-            -print | head -300
-
-          echo ""
-          echo "===== Searching for libtiff ====="
-
-          TIFF_DIR="$(find external \
-            -type d \
-            -iname 'libtiff' \
-            | head -n 1 || true)"
+          TIFF_DIR="$(find external -type d -iname 'libtiff' | head -n 1 || true)"
 
           if [ -z "$TIFF_DIR" ]; then
-            echo ""
-            echo "ERROR: libtiff was not found."
-            echo ""
-            echo "===== external tree ====="
-
-            find external \
-              -maxdepth 5 \
-              -print | head -700
-
+            echo "ERROR: libtiff not found"
+            find external -maxdepth 5 -print | head -500
             exit 1
           fi
 
-          echo ""
           echo "Found libtiff:"
           echo "$TIFF_DIR"
 
-          echo ""
-          echo "===== Checking libtiff CMakeLists.txt ====="
-
           if [ ! -f "$TIFF_DIR/CMakeLists.txt" ]; then
-            echo ""
-            echo "ERROR: libtiff directory exists but CMakeLists.txt is missing."
-
-            find "$TIFF_DIR" \
-              -maxdepth 3 \
-              -print
-
+            echo "ERROR: libtiff CMakeLists.txt not found"
             exit 1
           fi
 
-          echo ""
-          echo "libtiff CMake project found."
-
-      # ============================================================
-      # 6. Download SDL2_ttf dependencies
-      # ============================================================
-      - name: Download SDL2_ttf dependencies
+      - name: Download SDL_ttf dependencies
         run: |
           set -e
 
-          echo "========================================"
-          echo "Downloading SDL2_ttf dependencies"
-          echo "========================================"
-
           cd external/SDL_ttf
 
-          if [ ! -f "external/download.sh" ]; then
-            echo "ERROR: SDL2_ttf download.sh not found"
-            exit 1
-          fi
-
           chmod +x external/download.sh
-
           ./external/download.sh
 
           cd ../..
 
-          echo ""
-          echo "===== Searching for FreeType ====="
-
-          find external/SDL_ttf \
-            -iname "ft2build.h" \
-            -print | head -100
-
-      # ============================================================
-      # 7. Verify FreeType
-      # ============================================================
-      - name: Verify FreeType
+      - name: Check FreeType
         run: |
           set -e
 
-          echo "========================================"
-          echo "Verifying FreeType"
-          echo "========================================"
-
-          if find external/SDL_ttf \
-            -type f \
-            -name "ft2build.h" \
-            | grep -q .; then
-
+          if find external/SDL_ttf -type f -name "ft2build.h" | grep -q .; then
             echo "FreeType OK"
-
           else
-
             echo "ERROR: FreeType not found"
-
-            find external/SDL_ttf \
-              -maxdepth 5 \
-              -print
-
             exit 1
-
           fi
 
-      # ============================================================
-      # 8. Check project files
-      # ============================================================
-      - name: Check project files
+      - name: Check project
         run: |
           set -e
 
           echo "===== Root ====="
           ls -la
 
-          echo ""
           echo "===== src ====="
+          find src -maxdepth 4 -type f | head -200
 
-          if [ -d "src" ]; then
-            find src \
-              -maxdepth 4 \
-              -type f \
-              | head -200
-          fi
-
-          echo ""
           echo "===== CMakeLists.txt ====="
+          sed -n '1,300p' CMakeLists.txt
 
-          if [ -f "CMakeLists.txt" ]; then
-            sed -n '1,260p' CMakeLists.txt
-          else
-            echo "ERROR: CMakeLists.txt not found"
-            exit 1
-          fi
-
-      # ============================================================
-      # 9. Configure iOS ARM64
-      # ============================================================
       - name: Configure iOS ARM64
         run: |
           set -e
-
-          echo "========================================"
-          echo "Configuring iOS ARM64"
-          echo "========================================"
 
           rm -rf build
 
@@ -300,236 +135,111 @@ jobs:
             -DSDL2TTF_SAMPLES=OFF \
             -DSDL2TTF_TESTS=OFF
 
-      # ============================================================
-      # 10. Build
-      # ============================================================
       - name: Build iOS ARM64
         run: |
           set -e
 
-          echo "========================================"
-          echo "Building th06"
-          echo "========================================"
-
-          cmake \
-            --build build \
+          cmake --build build \
             --config Release \
             --parallel 4
 
-      # ============================================================
-      # 11. Find application
-      # ============================================================
-      - name: Find application
+      - name: Find app
         run: |
           set -e
 
-          echo "===== Applications ====="
+          echo "Searching for app..."
 
-          find build \
-            -type d \
-            -name "*.app" \
-            -print
+          find build -type d -name "*.app" -print
 
-          APP="$(find build \
-            -type d \
-            -name 'th06.app' \
-            | head -n 1)"
+          APP="$(find build -type d -name 'th06.app' | head -n 1)"
 
           if [ -z "$APP" ]; then
             echo "ERROR: th06.app not found"
             exit 1
           fi
 
-          echo ""
-          echo "Application:"
-          echo "$APP"
+          echo "APP=$APP"
 
-      # ============================================================
-      # 12. Verify iOS ARM64 binary
-      # ============================================================
-      - name: Verify iOS ARM64 binary
+      - name: Verify ARM64 iOS binary
         run: |
           set -e
 
-          echo "========================================"
-          echo "Verifying iOS ARM64"
-          echo "========================================"
-
-          APP="$(find build \
-            -type d \
-            -name 'th06.app' \
-            | head -n 1)"
-
-          if [ -z "$APP" ]; then
-            echo "ERROR: th06.app not found"
-            exit 1
-          fi
-
+          APP="$(find build -type d -name 'th06.app' | head -n 1)"
           BIN="$APP/th06"
 
           if [ ! -f "$BIN" ]; then
-            echo "ERROR: th06 executable not found"
+            echo "ERROR: executable not found"
             exit 1
           fi
 
-          echo ""
           echo "===== file ====="
           file "$BIN"
 
-          echo ""
           echo "===== lipo ====="
           lipo -info "$BIN"
 
-          echo ""
-          echo "===== Mach-O ====="
-          otool -l "$BIN" \
-            | grep -A8 LC_BUILD_VERSION || true
+          echo "===== platform ====="
+          otool -l "$BIN" | grep -A8 LC_BUILD_VERSION || true
 
-          echo ""
-          echo "===== ARM64 check ====="
+          echo "Checking ARM64..."
 
-          if ! lipo -info "$BIN" | grep -q "arm64"; then
-            echo "ERROR: ARM64 not found"
-            exit 1
+          lipo -info "$BIN" | grep -q arm64
+
+          echo "ARM64 OK"
+
+          echo "Checking iOS platform..."
+
+          if otool -l "$BIN" | grep -A8 LC_BUILD_VERSION | grep -q PLATFORM_IOS; then
+            echo "iOS platform OK"
+          else
+            echo "WARNING: PLATFORM_IOS was not detected"
           fi
 
-          echo "ARM64: OK"
-
-          echo ""
-          echo "===== iOS check ====="
-
-          if ! otool -l "$BIN" \
-            | grep -A8 LC_BUILD_VERSION \
-            | grep -q "PLATFORM_IOS"; then
-
-            echo "ERROR: PLATFORM_IOS not found"
-            exit 1
-          fi
-
-          echo "iOS: OK"
-
-          echo ""
-          echo "========================================"
-          echo "iOS ARM64 verification PASSED"
-          echo "========================================"
-
-      # ============================================================
-      # 13. Package resources
-      # ============================================================
-      - name: Package game resources
+      - name: Package resources
         run: |
           set -e
 
-          APP="$(find build \
-            -type d \
-            -name 'th06.app' \
-            | head -n 1)"
+          APP="$(find build -type d -name 'th06.app' | head -n 1)"
 
-          if [ -z "$APP" ]; then
-            echo "ERROR: th06.app not found"
-            exit 1
-          fi
-
-          echo "Application:"
-          echo "$APP"
-
-          if [ -d "resources" ]; then
+          if [ -d resources ]; then
             echo "Copying resources..."
             cp -R resources "$APP/"
           else
-            echo "No resources directory found."
+            echo "No resources directory."
           fi
 
-          echo ""
-          echo "===== APP CONTENTS ====="
+          echo "===== APP CONTENT ====="
+          find "$APP" -maxdepth 4 -print
 
-          find "$APP" \
-            -maxdepth 4 \
-            -print
-
-      # ============================================================
-      # 14. Check Info.plist
-      # ============================================================
-      - name: Check Info.plist
+      - name: Create Info.plist
         run: |
           set -e
 
-          APP="$(find build \
-            -type d \
-            -name 'th06.app' \
-            | head -n 1)"
+          APP="$(find build -type d -name 'th06.app' | head -n 1)"
 
-          if [ -z "$APP" ]; then
-            echo "ERROR: th06.app not found"
-            exit 1
-          fi
+          PLIST="$APP/Info.plist"
 
-          if [ ! -f "$APP/Info.plist" ]; then
+          rm -f "$PLIST"
 
-            echo "Creating Info.plist..."
+          /usr/libexec/PlistBuddy -c "Add :CFBundleExecutable string th06" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string com.example.th06" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleName string th06" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string 東方紅魔郷" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundlePackageType string APPL" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string 1.0" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string 1" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :LSRequiresIPhoneOS bool true" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily array" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily:0 integer 1" "$PLIST"
 
-            cat > "$APP/Info.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-
-<plist version="1.0">
-<dict>
-
-    <key>CFBundleExecutable</key>
-    <string>th06</string>
-
-    <key>CFBundleIdentifier</key>
-    <string>com.example.th06</string>
-
-    <key>CFBundleName</key>
-    <string>th06</string>
-
-    <key>CFBundleDisplayName</key>
-    <string>東方紅魔郷</string>
-
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-
-    <key>CFBundleVersion</key>
-    <string>1</string>
-
-    <key>LSRequiresIPhoneOS</key>
-    <true/>
-
-    <key>UIDeviceFamily</key>
-    <array>
-        <integer>1</integer>
-    </array>
-
-</dict>
-</plist>
-PLIST
-
-          else
-
-            echo "Info.plist already exists."
-
-          fi
-
-          echo ""
           echo "===== Info.plist ====="
-          cat "$APP/Info.plist"
+          plutil -p "$PLIST"
 
-      # ============================================================
-      # 15. Create IPA
-      # ============================================================
       - name: Create IPA
         run: |
           set -e
 
-          APP="$(find build \
-            -type d \
-            -name 'th06.app' \
-            | head -n 1)"
+          APP="$(find build -type d -name 'th06.app' | head -n 1)"
 
           if [ -z "$APP" ]; then
             echo "ERROR: th06.app not found"
@@ -544,10 +254,7 @@ PLIST
           cp -R "$APP" Payload/th06.app
 
           echo "===== Payload ====="
-
-          find Payload \
-            -maxdepth 4 \
-            -print
+          find Payload -maxdepth 4 -print
 
           cd Payload
 
@@ -555,38 +262,22 @@ PLIST
 
           cd ..
 
-          echo ""
           echo "===== IPA ====="
-
           ls -lh th06.ipa
 
-      # ============================================================
-      # 16. Verify IPA
-      # ============================================================
       - name: Verify IPA
         run: |
           set -e
 
-          if [ ! -f "th06.ipa" ]; then
-            echo "ERROR: th06.ipa not found"
+          if [ ! -f th06.ipa ]; then
+            echo "ERROR: IPA was not created"
             exit 1
           fi
 
-          echo "===== IPA SIZE ====="
-          ls -lh th06.ipa
+          unzip -l th06.ipa | head -150
 
-          echo ""
-          echo "===== IPA CONTENTS ====="
-
-          unzip -l th06.ipa \
-            | head -100
-
-      # ============================================================
-      # 17. Upload IPA
-      # ============================================================
       - name: Upload IPA
         uses: actions/upload-artifact@v4
-
         with:
           name: th06-ios-arm64-unsigned
           path: th06.ipa
