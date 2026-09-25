@@ -1,0 +1,20 @@
+name: Build IPA online
+on: [push]
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: brew install premake5 sdl2 sdl2_mixer
+      - name: Build
+        run: |
+          premake5 xcode4
+          xcodebuild -project th06.xcodeproj -target th06 -configuration Release CODE_SIGNING_ALLOWED=NO -sdk iphoneos
+          mkdir -p Payload
+          find. -name "*.app" -type d | head -n 1 | xargs -I {} cp -R {} Payload/
+          zip -r th06.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: th06-ipa
+          path: th06.ipa
