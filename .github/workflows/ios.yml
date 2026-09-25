@@ -6,26 +6,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
-        run: brew install premake sdl2 sdl2_mixer sdl2_image sdl2_ttf
-      - name: Build
+        run: brew install premake sdl2 sdl2_image sdl2_ttf sdl2_mixer
+      - name: Build game
         run: |
           set -x
-          premake5 gmake2
-          cat build/*.make | head -n 100 || true
-          sed -i '' 's/-Werror//g' build/*.make || true
-          make -C build config=release -j4 CXXFLAGS="-w" CFLAGS="-w" || make -C build -j4 CXXFLAGS="-w" CFLAGS="-w" || true
+          premake5 gmake
+          cd build
+          make config=release -j4 CXXFLAGS="-w" CFLAGS="-w" || make -j4 CXXFLAGS="-w" CFLAGS="-w"
+          cd..
           ls -lh build/
-          find. -type f -name "th06" | xargs ls -lh || true
-          mkdir -p Payload/th06.app
-          cp build/th06 Payload/th06.app/th06 2>/dev/null || find build -type f -name "th06" -exec cp {} Payload/th06.app/th06 \; || true
-          ls -lh Payload/th06.app/
-          echo '<?xml version="1.0"?><plist><dict><key>CFBundleExecutable</key><string>th06</string><key>CFBundleIdentifier</key><string>com.touhou.th06</string><key>CFBundleName</key><string>th06</string></dict></plist>' > Payload/th06.app/Info.plist
+          ls -lh th06 2>/dev/null || ls -lh game/th06 2>/dev/null || find. -name "th06" -type f -exec ls -lh {} \;
+          # 如果有打包腳本就用它
+          if [ -f package_app.py ]; then python3 package_app.py || true; fi
+          ls -lh *.app 2>/dev/null || ls -lh th06.app 2>/dev/null || true
+          ls -lh build/Release/ 2>/dev/null || true
+          echo "=== create IPA ==="
+          mkdir -p Payload
+          # 找真正的.app
+          APP=$(find. -maxdepth 3 -name "*.app" -type d | head -n 1)
+          echo "APP found: $APP"
+          if [ -n "$APP" ]; then
+            cp -R "$APP" Payload/
+          else
+            # 沒有.app就自己包一個，重點是把真的執行檔放進去
+            mkdir -p Payload/th06.app
+            BIN=$(find build -type f -name "th06" -size +500k | head -n 1)
+            if [ -z "$BIN" ]; then BIN=$(find. -type f -name "th06" -size +500k | head -n 1); fi
+            echo "BIN=$BIN size=$(wc -c < $BIN 2>/dev/null || echo 0)"
+            cp "$BIN" Payload/th06.app/th06 2>/dev/null || cp build/th06 Payload/th06.app/th06 || cp th06 Payload/th06.app/th06 || true
+            echo '<?xml version="1.0"?><plist><dict><key>CFBundleExecutable</key><string>th06</string><key>CFBundleIdentifier</key><string>com.touhou.th06</string><key>CFBundleName</key><string>th06</string></dict></plist>' > Payload/th06.app/Info.plist
+          fi
+          ls -lhR Payload
+          du -h Payload/th06.app/th06 || true
           zip -r th06.ipa Payload
           ls -lh th06.ipa
+          if [ $(stat -f%z th06.ipa) -lt 1000000 ]; then echo "IPA still too small, check build log above!"; exit 1; fi
       - uses: actions/upload-artifact@v4
         with:
           name: th06-ipa
-          path: |
-            th06.ipa
-            build/
-          if-no-files-found: warn
+          path: th06.ipa
