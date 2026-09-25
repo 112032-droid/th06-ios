@@ -19,18 +19,25 @@ jobs:
           xcrun --sdk iphoneos --show-sdk-path
           xcrun --sdk iphoneos --show-sdk-version
 
-      - name: Download SDL2
+      - name: Download SDL2 and dependencies
         run: |
           set -e
           mkdir -p external
-          git clone --depth 1 --branch SDL2 https://github.com/libsdl-org/SDL.git external/SDL
-          git clone --depth 1 --branch SDL2 https://github.com/libsdl-org/SDL_image.git external/SDL_image
-          git clone --depth 1 --branch SDL2 https://github.com/libsdl-org/SDL_ttf.git external/SDL_ttf
+
+          git clone --depth 1 https://github.com/libsdl-org/SDL.git external/SDL
+          git clone --depth 1 https://github.com/libsdl-org/SDL_image.git external/SDL_image
+          git clone --depth 1 https://github.com/libsdl-org/SDL_ttf.git external/SDL_ttf
+
+          cd external/SDL_image
+          if [ -f ./external/download.sh ]; then
+            ./external/download.sh
+          fi
 
       - name: Configure iOS ARM64
         run: |
           set -e
           rm -rf build
+
           cmake \
             -S . \
             -B build \
@@ -39,6 +46,12 @@ jobs:
             -DCMAKE_OSX_SYSROOT=iphoneos \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+            -DSDL2IMAGE_VENDORED=ON \
+            -DSDL2IMAGE_SAMPLES=OFF \
+            -DSDL2IMAGE_TESTS=OFF \
+            -DSDL2TTF_VENDORED=ON \
+            -DSDL2TTF_SAMPLES=OFF \
+            -DSDL2TTF_TESTS=OFF \
             -DCMAKE_BUILD_TYPE=Release
 
       - name: Build ARM64
@@ -49,7 +62,7 @@ jobs:
       - name: Find app
         run: |
           set -e
-          find build -maxdepth 6 -type d -name "*.app" -print
+          find build -maxdepth 8 -type d -name "*.app" -print
 
       - name: Verify iOS ARM64 binary
         run: |
@@ -72,16 +85,20 @@ jobs:
           echo "=== file ==="
           file "$BIN"
 
-          echo "=== architectures ==="
+          echo "=== lipo ==="
           lipo -info "$BIN"
 
-          echo "=== Mach-O platform ==="
-          otool -l "$BIN" | grep -A5 LC_BUILD_VERSION || true
+          echo "=== build platform ==="
+          otool -l "$BIN" | grep -A8 LC_BUILD_VERSION || true
 
           lipo -info "$BIN" | grep -q arm64
-          otool -l "$BIN" | grep -A5 LC_BUILD_VERSION | grep -q PLATFORM_IOS
 
-          echo "iOS ARM64 verification PASSED"
+          if otool -l "$BIN" | grep -A8 LC_BUILD_VERSION | grep -q PLATFORM_IOS; then
+            echo "iOS ARM64 verification PASSED"
+          else
+            echo "ERROR: binary is not marked as iOS"
+            exit 1
+          fi
 
       - name: Package game resources
         run: |
@@ -105,8 +122,8 @@ jobs:
             cp "東方紅魔郷" "$APP/"
           fi
 
-          echo "=== APP CONTENTS ==="
-          find "$APP" -maxdepth 2 -print
+          echo "=== App contents ==="
+          find "$APP" -maxdepth 3 -print
 
       - name: Create IPA
         run: |
@@ -122,7 +139,6 @@ jobs:
           zip -r ../th06.ipa th06.app
           cd ..
 
-          echo "=== IPA ==="
           ls -lh th06.ipa
 
       - name: Upload IPA
