@@ -104,17 +104,6 @@ jobs:
           echo "===== Unified SDL2 Headers ====="
           ls -la include/SDL2
 
-      - name: Patch CMakeLists.txt for include path
-        run: |
-          set -e
-          echo "Injecting include directory into CMakeLists.txt..."
-          # 在 CMakeLists.txt 的第二行後面插入 include_directories
-          sed -i '' '2a\
-          include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
-          ' CMakeLists.txt
-          echo "===== Modified CMakeLists.txt (Top 15 lines) ====="
-          head -n 15 CMakeLists.txt
-
       - name: Check FreeType
         run: |
           set -e
@@ -151,6 +140,7 @@ jobs:
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_XCODE_ATTRIBUTE_HEADER_SEARCH_PATHS="\$(SRCROOT)/include" \
             -DSDL_TESTS=OFF \
             -DSDL_TEST_LIBRARY=OFF \
             -DSDL_SHARED=OFF \
