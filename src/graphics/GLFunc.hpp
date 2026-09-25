@@ -1,6 +1,25 @@
 #pragma once
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE || TARGET_OS_SIMULATOR
+#include <OpenGLES/ES2/gl.h>
+#include <OpenGLES/ES2/glext.h>
+// 針對 iOS / OpenGLES 補上缺少的型別與巨集
+typedef GLfloat GLclampf;
+typedef GLfloat GLclampd;
+#ifndef GLAPIENTRY
+#define GLAPIENTRY
+#endif
+#ifndef GLbitfield
+typedef unsigned int GLbitfield;
+#endif
+#else
 #include <SDL2/SDL_opengl.h>
+#endif
+#else
+#include <SDL2/SDL_opengl.h>
+#endif
 
 // Function pointers for OpenGL functions used in EoSD. This is necessary because Windows
 //   opengl32 only goes up to OpenGL 1.1 and some of the blending parameters we need are
