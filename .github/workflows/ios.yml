@@ -10,14 +10,13 @@ jobs:
       - name: Build
         run: |
           premake5 gmake2
-          make -C build -j4 CXXFLAGS="-w" CFLAGS="-w" || make -C build config=release -j4 CXXFLAGS="-w" CFLAGS="-w"
-          echo "=== FIND BIN ==="
+          make -C build -j4 CXXFLAGS="-w" CFLAGS="-w"
+          echo "=== list build ==="
+          ls -lh build/
+          echo "=== find bin ==="
           find. -type f -name "th06" -exec ls -lh {} \;
-          ls -lhR build | head -n 100
           mkdir -p Payload/th06.app
-          BIN=$(find. -type f -name "th06" -size +100k | head -n 1)
-          echo "BIN is $BIN"
-          cp "$BIN" Payload/th06.app/th06
+          find. -type f -name "th06" -size +100k -exec cp {} Payload/th06.app/th06 \;
           echo '<?xml version="1.0"?><plist><dict><key>CFBundleExecutable</key><string>th06</string><key>CFBundleIdentifier</key><string>com.touhou.th06</string><key>CFBundleName</key><string>th06</string></dict></plist>' > Payload/th06.app/Info.plist
           ls -lh Payload/th06.app/
           zip -r th06.ipa Payload
