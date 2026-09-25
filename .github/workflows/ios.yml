@@ -39,17 +39,46 @@ jobs:
       - name: Download SDL_image dependencies
         run: |
           set -e
+
           cd external/SDL_image
+
           chmod +x external/download.sh
           ./external/download.sh
+
           cd ../..
+
+          echo "Checking SDL_image dependencies..."
+          find external/SDL_image/external -maxdepth 3 -type d -print || true
+
+      - name: Check libtiff
+        run: |
+          set -e
+
+          TIFF_DIR="$(find external -type d -iname 'libtiff' | head -n 1 || true)"
+
+          if [ -z "$TIFF_DIR" ]; then
+            echo "ERROR: libtiff not found"
+            find external -maxdepth 5 -print | head -500
+            exit 1
+          fi
+
+          echo "Found libtiff:"
+          echo "$TIFF_DIR"
+
+          if [ ! -f "$TIFF_DIR/CMakeLists.txt" ]; then
+            echo "ERROR: libtiff CMakeLists.txt not found"
+            exit 1
+          fi
 
       - name: Download SDL_ttf dependencies
         run: |
           set -e
+
           cd external/SDL_ttf
+
           chmod +x external/download.sh
           ./external/download.sh
+
           cd ../..
 
       - name: Create unified SDL2 include directory
@@ -74,6 +103,30 @@ jobs:
 
           echo "===== Unified SDL2 Headers ====="
           ls -la include/SDL2
+
+      - name: Check FreeType
+        run: |
+          set -e
+
+          if find external/SDL_ttf -type f -name "ft2build.h" | grep -q .; then
+            echo "FreeType OK"
+          else
+            echo "ERROR: FreeType not found"
+            exit 1
+          fi
+
+      - name: Check project
+        run: |
+          set -e
+
+          echo "===== Root ====="
+          ls -la
+
+          echo "===== src ====="
+          find src -maxdepth 4 -type f | head -200
+
+          echo "===== CMakeLists.txt ====="
+          sed -n '1,300p' CMakeLists.txt
 
       - name: Configure iOS ARM64
         run: |
@@ -114,3 +167,143 @@ jobs:
           cmake --build build \
             --config Release \
             --parallel 4
+
+      - name: Find app
+        run: |
+          set -e
+
+          echo "Searching for app..."
+
+          find build -type d -name "*.app" -print
+
+          APP="$(find build -type d -name 'th06.app' | head -n 1)"
+
+          if [ -z "$APP" ]; then
+            echo "ERROR: th06.app not found"
+            exit 1
+          fi
+
+          echo "APP=$APP"
+
+      - name: Verify ARM64 iOS binary
+        run: |
+          set -e
+
+          APP="$(find build -type d -name 'th06.app' | head -n 1)"
+          BIN="$APP/th06"
+
+          if [ ! -f "$BIN" ]; then
+            echo "ERROR: executable not found"
+            exit 1
+          fi
+
+          echo "===== file ====="
+          file "$BIN"
+
+          echo "===== lipo ====="
+          lipo -info "$BIN"
+
+          echo "===== platform ====="
+          otool -l "$BIN" | grep -A8 LC_BUILD_VERSION || true
+
+          echo "Checking ARM64..."
+
+          lipo -info "$BIN" | grep -q arm64
+
+          echo "ARM64 OK"
+
+          echo "Checking iOS platform..."
+
+          if otool -l "$BIN" | grep -A8 LC_BUILD_VERSION | grep -q PLATFORM_IOS; then
+            echo "iOS platform OK"
+          else
+            echo "WARNING: PLATFORM_IOS was not detected"
+          fi
+
+      - name: Package resources
+        run: |
+          set -e
+
+          APP="$(find build -type d -name 'th06.app' | head -n 1)"
+
+          if [ -d resources ]; then
+            echo "Copying resources..."
+            cp -R resources "$APP/"
+          else
+            echo "No resources directory."
+          fi
+
+          echo "===== APP CONTENT ====="
+          find "$APP" -maxdepth 4 -print
+
+      - name: Create Info.plist
+        run: |
+          set -e
+
+          APP="$(find build -type d -name 'th06.app' | head -n 1)"
+
+          PLIST="$APP/Info.plist"
+
+          rm -f "$PLIST"
+
+          /usr/libexec/PlistBuddy -c "Add :CFBundleExecutable string th06" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string com.example.th06" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleName string th06" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string 東方紅魔郷" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundlePackageType string APPL" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string 1.0" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string 1" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :LSRequiresIPhoneOS bool true" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily array" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily:0 integer 1" "$PLIST"
+
+          echo "===== Info.plist ====="
+          plutil -p "$PLIST"
+
+      - name: Create IPA
+        run: |
+          set -e
+
+          APP="$(find build -type d -name 'th06.app' | head -n 1)"
+
+          if [ -z "$APP" ]; then
+            echo "ERROR: th06.app not found"
+            exit 1
+          fi
+
+          rm -rf Payload
+          rm -f th06.ipa
+
+          mkdir -p Payload
+
+          cp -R "$APP" Payload/th06.app
+
+          echo "===== Payload ====="
+          find Payload -maxdepth 4 -print
+
+          cd Payload
+
+          zip -r ../th06.ipa th06.app
+
+          cd ..
+
+          echo "===== IPA ====="
+          ls -lh th06.ipa
+
+      - name: Verify IPA
+        run: |
+          set -e
+
+          if [ ! -f th06.ipa ]; then
+            echo "ERROR: IPA was not created"
+            exit 1
+          fi
+
+          unzip -l th06.ipa | head -150
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: th06-ios-arm64-unsigned
+          path: th06.ipa
+          if-no-files-found: error
