@@ -11,20 +11,27 @@ message(STATUS "Architecture: ${CMAKE_OSX_ARCHITECTURES}")
 message(STATUS "SDK: ${CMAKE_OSX_SYSROOT}")
 message(STATUS "========================================")
 
+
 # ============================================================
 # SDL2
 # ============================================================
 
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
 set(SDL_TESTS OFF CACHE BOOL "" FORCE)
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
+
 set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 set(SDL_STATIC ON CACHE BOOL "" FORCE)
+
 set(SDL2_SHARED OFF CACHE BOOL "" FORCE)
+set(SDL2_STATIC ON CACHE BOOL "" FORCE)
 
 add_subdirectory(
     external/SDL
     ${CMAKE_BINARY_DIR}/SDL
 )
+
 
 # ============================================================
 # SDL2_image
@@ -34,6 +41,8 @@ set(SDL2IMAGE_SAMPLES OFF CACHE BOOL "" FORCE)
 set(SDL2IMAGE_TESTS OFF CACHE BOOL "" FORCE)
 set(SDL2IMAGE_VENDORED ON CACHE BOOL "" FORCE)
 
+set(SDL2IMAGE_SHARED OFF CACHE BOOL "" FORCE)
+
 set(SDL2IMAGE_AVIF OFF CACHE BOOL "" FORCE)
 set(SDL2IMAGE_WEBP OFF CACHE BOOL "" FORCE)
 set(SDL2IMAGE_JXL OFF CACHE BOOL "" FORCE)
@@ -42,6 +51,7 @@ add_subdirectory(
     external/SDL_image
     ${CMAKE_BINARY_DIR}/SDL_image
 )
+
 
 # ============================================================
 # SDL2_ttf
@@ -56,75 +66,29 @@ add_subdirectory(
     ${CMAKE_BINARY_DIR}/SDL_ttf
 )
 
+
 # ============================================================
 # th06 source files
 # ============================================================
 
-set(TH06_SOURCES
-
-    src/main.cpp
-
-    # graphics
-    src/graphics/GLFunc.cpp
-    src/graphics/FixedFunctionGL.cpp
-    src/graphics/WebGL.cpp
-    src/graphics/Software.cpp
-
-    # pbg3
-    src/pbg3/Background.cpp
-    src/pbg3/Camera.cpp
-    src/pbg3/Collision.cpp
-    src/pbg3/Effect.cpp
-    src/pbg3/EffectManager.cpp
-    src/pbg3/Enemy.cpp
-    src/pbg3/EnemyManager.cpp
-    src/pbg3/Font.cpp
-    src/pbg3/Game.cpp
-    src/pbg3/Item.cpp
-    src/pbg3/ItemManager.cpp
-    src/pbg3/Math.cpp
-    src/pbg3/Player.cpp
-    src/pbg3/PlayerShot.cpp
-    src/pbg3/PlayerShotManager.cpp
-    src/pbg3/Replay.cpp
-    src/pbg3/Resource.cpp
-    src/pbg3/ResourceManager.cpp
-    src/pbg3/Scene.cpp
-    src/pbg3/Script.cpp
-    src/pbg3/Sound.cpp
-    src/pbg3/Stage.cpp
-    src/pbg3/Texture.cpp
-    src/pbg3/Timer.cpp
-    src/pbg3/Util.cpp
-
-    # third party
-    src/thirdparty/sjis_converter.cpp
-
-    # MIDI
-    src/midi/MidiDefault.cpp
+file(GLOB_RECURSE TH06_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
 
-# ============================================================
-# Automatically remove source files that don't exist
-# ============================================================
-
-set(REAL_TH06_SOURCES "")
+message(STATUS "========================================")
+message(STATUS "Found th06 source files:")
+message(STATUS "========================================")
 
 foreach(SOURCE_FILE ${TH06_SOURCES})
-
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE_FILE}")
-
-        list(APPEND REAL_TH06_SOURCES "${SOURCE_FILE}")
-
-    else()
-
-        message(WARNING
-            "Source file does not exist, skipping: ${SOURCE_FILE}"
-        )
-
-    endif()
-
+    message(STATUS "  ${SOURCE_FILE}")
 endforeach()
+
+list(LENGTH TH06_SOURCES TH06_SOURCE_COUNT)
+
+message(STATUS "========================================")
+message(STATUS "Total source files: ${TH06_SOURCE_COUNT}")
+message(STATUS "========================================")
+
 
 # ============================================================
 # Executable
@@ -132,8 +96,13 @@ endforeach()
 
 add_executable(
     th06
-    ${REAL_TH06_SOURCES}
+    ${TH06_SOURCES}
 )
+
+
+# ============================================================
+# Include directories
+# ============================================================
 
 target_include_directories(
     th06
@@ -141,17 +110,28 @@ target_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+
+# ============================================================
+# Compile definitions
+# ============================================================
+
 target_compile_definitions(
     th06
     PRIVATE
     NDEBUG
 )
 
+
+# ============================================================
+# Compile options
+# ============================================================
+
 target_compile_options(
     th06
     PRIVATE
     -Wno-deprecated-declarations
 )
+
 
 # ============================================================
 # Libraries
@@ -165,6 +145,7 @@ target_link_libraries(
     SDL2_ttf
 )
 
+
 # ============================================================
 # iOS frameworks
 # ============================================================
@@ -174,6 +155,7 @@ if(IOS)
     target_link_libraries(
         th06
         PRIVATE
+
         "-framework Foundation"
         "-framework UIKit"
         "-framework AudioToolbox"
@@ -188,6 +170,7 @@ if(IOS)
     )
 
 endif()
+
 
 # ============================================================
 # Shader embedding
@@ -228,7 +211,8 @@ if(
 
     add_custom_target(
         generate_embeds
-        DEPENDS "${EMBED_HEADER}"
+        DEPENDS
+            "${EMBED_HEADER}"
     )
 
     add_dependencies(
@@ -237,6 +221,7 @@ if(
     )
 
 endif()
+
 
 # ============================================================
 # iOS application bundle
@@ -282,10 +267,16 @@ set_target_properties(
         "YES"
 )
 
+
+# ============================================================
+# Final information
+# ============================================================
+
 message(STATUS "========================================")
 message(STATUS "th06 CMake configuration complete")
 message(STATUS "System: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "Architecture: ${CMAKE_OSX_ARCHITECTURES}")
 message(STATUS "SDK: ${CMAKE_OSX_SYSROOT}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "Source count: ${TH06_SOURCE_COUNT}")
 message(STATUS "========================================")
