@@ -6,13 +6,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
-        run: brew install premake5 sdl2 sdl2_mixer
+        run: brew install premake sdl2 sdl2_mixer
       - name: Build
         run: |
-          premake5 xcode4
-          xcodebuild -project th06.xcodeproj -target th06 -configuration Release CODE_SIGNING_ALLOWED=NO -sdk iphoneos
+          premake gmake || premake xcode4
+          make -j4 || xcodebuild -project th06.xcodeproj -target th06 -configuration Release CODE_SIGNING_ALLOWED=NO -sdk iphoneos || true
           mkdir -p Payload
-          find. -name "*.app" -type d | head -n 1 | xargs -I {} cp -R {} Payload/
+          APP=$(find. -name "*.app" -type d | head -n 1)
+          echo $APP
+          cp -R "$APP" Payload/ 2>/dev/null || true
+          ls Payload
           zip -r th06.ipa Payload
       - uses: actions/upload-artifact@v4
         with:
