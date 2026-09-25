@@ -9,11 +9,15 @@ jobs:
         run: brew install premake sdl2 sdl2_mixer sdl2_image sdl2_ttf
       - name: Build
         run: |
-          premake5 gmake
-          make -C build config=release -j4 CXXFLAGS="-w" CFLAGS="-w"
-          ls -lh build/
+          premake5 gmake2
+          make -C build -j4 CXXFLAGS="-w" CFLAGS="-w" || make -C build config=release -j4 CXXFLAGS="-w" CFLAGS="-w"
+          echo "=== FIND BIN ==="
+          find. -type f -name "th06" -exec ls -lh {} \;
+          ls -lhR build | head -n 100
           mkdir -p Payload/th06.app
-          cp build/th06 Payload/th06.app/th06
+          BIN=$(find. -type f -name "th06" -size +100k | head -n 1)
+          echo "BIN is $BIN"
+          cp "$BIN" Payload/th06.app/th06
           echo '<?xml version="1.0"?><plist><dict><key>CFBundleExecutable</key><string>th06</string><key>CFBundleIdentifier</key><string>com.touhou.th06</string><key>CFBundleName</key><string>th06</string></dict></plist>' > Payload/th06.app/Info.plist
           ls -lh Payload/th06.app/
           zip -r th06.ipa Payload
