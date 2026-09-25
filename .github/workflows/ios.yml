@@ -1,79 +1,132 @@
-name: Build IPA online
+name: Build iOS IPA
+
 on:
   push:
+  workflow_dispatch:
+
 jobs:
-  build:
+  build-ios:
     runs-on: macos-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Install deps
-        run: |
-          brew install premake sdl2 sdl2_image sdl2_mixer sdl2_ttf
-          echo "=== Homebrew ==="
-          brew --prefix
-          brew list --versions sdl2 sdl2_image sdl2_mixer sdl2_ttf
-          which premake5
-          premake5 --version
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Configure SDL2 paths
-        run: |
-          echo "PKG_CONFIG_PATH=$(brew --prefix)/lib/pkgconfig" >> "$GITHUB_ENV"
-          echo "CPPFLAGS=-I$(brew --prefix)/include" >> "$GITHUB_ENV"
-          echo "LDFLAGS=-L$(brew --prefix)/lib" >> "$GITHUB_ENV"
-
-      - name: Build
-        shell: bash
+      - name: Check iOS SDK
         run: |
           set -e
-          echo "=== Generate Makefile ==="
-          premake5 gmake || premake5 gmake2
-          echo "=== Build th06 ==="
-          make -C build -j4 CXXFLAGS="-w -I$(brew --prefix)/include" CFLAGS="-w -I$(brew --prefix)/include" LDFLAGS="-L$(brew --prefix)/lib"
-          echo "=== List build ==="
-          ls -lah build/
-          echo "=== Search th06 ==="
-          TH06_BIN=""
-          if [ -f "build/th06" ]; then TH06_BIN="build/th06"
-          elif [ -f "build/Debug/th06" ]; then TH06_BIN="build/Debug/th06"
-          elif [ -f "build/Release/th06" ]; then TH06_BIN="build/Release/th06"
-          elif [ -f "build/debug/th06" ]; then TH06_BIN="build/debug/th06"
-          elif [ -f "th06" ]; then TH06_BIN="th06"
-          fi
-          if [ -z "$TH06_BIN" ]; then
-            echo "ERROR: th06 binary not found"
-            ls -R build/
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-path
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Download SDL2
+        run: |
+          set -e
+          mkdir -p external
+          git clone --depth 1 --branch SDL2 https://github.com/libsdl-org/SDL.git external/SDL
+          git clone --depth 1 --branch SDL2 https://github.com/libsdl-org/SDL_image.git external/SDL_image
+          git clone --depth 1 --branch SDL2 https://github.com/libsdl-org/SDL_ttf.git external/SDL_ttf
+
+      - name: Configure iOS ARM64
+        run: |
+          set -e
+          rm -rf build
+          cmake \
+            -S . \
+            -B build \
+            -G Xcode \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT=iphoneos \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build ARM64
+        run: |
+          set -e
+          cmake --build build --config Release --parallel 4
+
+      - name: Find app
+        run: |
+          set -e
+          find build -maxdepth 6 -type d -name "*.app" -print
+
+      - name: Verify iOS ARM64 binary
+        run: |
+          set -e
+
+          APP="$(find build -type d -name 'th06.app' | head -n 1)"
+
+          if [ -z "$APP" ]; then
+            echo "ERROR: th06.app not found"
             exit 1
           fi
-          echo "Found: $TH06_BIN"
-          file "$TH06_BIN"
-          ls -lh "$TH06_BIN"
-          echo "=== Create app ==="
+
+          BIN="$APP/th06"
+
+          if [ ! -f "$BIN" ]; then
+            echo "ERROR: executable not found: $BIN"
+            exit 1
+          fi
+
+          echo "=== file ==="
+          file "$BIN"
+
+          echo "=== architectures ==="
+          lipo -info "$BIN"
+
+          echo "=== Mach-O platform ==="
+          otool -l "$BIN" | grep -A5 LC_BUILD_VERSION || true
+
+          lipo -info "$BIN" | grep -q arm64
+          otool -l "$BIN" | grep -A5 LC_BUILD_VERSION | grep -q PLATFORM_IOS
+
+          echo "iOS ARM64 verification PASSED"
+
+      - name: Package game resources
+        run: |
+          set -e
+
+          APP="$(find build -type d -name 'th06.app' | head -n 1)"
+
+          if [ -d "resources" ]; then
+            cp -R resources "$APP/"
+          fi
+
+          if [ -f "th06_config" ]; then
+            cp th06_config "$APP/"
+          fi
+
+          if [ -f "NotoSans-Regular.ttf" ]; then
+            cp NotoSans-Regular.ttf "$APP/"
+          fi
+
+          if [ -f "東方紅魔郷" ]; then
+            cp "東方紅魔郷" "$APP/"
+          fi
+
+          echo "=== APP CONTENTS ==="
+          find "$APP" -maxdepth 2 -print
+
+      - name: Create IPA
+        run: |
+          set -e
+
+          APP="$(find build -type d -name 'th06.app' | head -n 1)"
+
           rm -rf Payload
-          mkdir -p Payload/th06.app
-          cp "$TH06_BIN" Payload/th06.app/th06
-          chmod +x Payload/th06.app/th06
-          cat > Payload/th06.app/Info.plist <<'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>CFBundleExecutable</key><string>th06</string>
-            <key>CFBundleIdentifier</key><string>com.example.th06</string>
-            <key>CFBundleName</key><string>th06</string>
-            <key>CFBundleDisplayName</key><string>東方紅魔郷</string>
-            <key>CFBundlePackageType</key><string>APPL</string>
-            <key>CFBundleShortVersionString</key><string>1.0</string>
-            <key>CFBundleVersion</key><string>1</string>
-            <key>LSRequiresIPhoneOS</key><true/>
-          </dict>
-          </plist>
-          EOF
-          ls -lah Payload/th06.app/
-          zip -r th06.ipa Payload
+          mkdir -p Payload
+          cp -R "$APP" Payload/th06.app
+
+          cd Payload
+          zip -r ../th06.ipa th06.app
+          cd ..
+
+          echo "=== IPA ==="
           ls -lh th06.ipa
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: th06-ipa
+          name: th06-ios-arm64-unsigned
           path: th06.ipa
