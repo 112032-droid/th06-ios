@@ -22,21 +22,25 @@ jobs:
       - name: Download SDL2 and dependencies
         run: |
           set -e
+
           mkdir -p external
 
+          echo "=== SDL2 ==="
           git clone --depth 1 --branch release-2.32.8 \
             https://github.com/libsdl-org/SDL.git \
             external/SDL
 
+          echo "=== SDL2_image ==="
           git clone --depth 1 --branch release-2.8.8 \
             https://github.com/libsdl-org/SDL_image.git \
             external/SDL_image
 
+          echo "=== SDL2_ttf ==="
           git clone --depth 1 --branch release-2.24.0 \
             https://github.com/libsdl-org/SDL_ttf.git \
             external/SDL_ttf
 
-          echo "Downloading SDL2_image dependencies..."
+          echo "=== Download SDL2_image dependencies ==="
 
           cd external/SDL_image
 
@@ -45,13 +49,45 @@ jobs:
             ./external/download.sh
           else
             echo "SDL2_image download.sh not found"
-            find external -maxdepth 2 -type f -print
           fi
 
           cd ../..
 
-          echo "Checking SDL2_image dependencies:"
+          echo "=== Download SDL2_ttf dependencies ==="
+
+          cd external/SDL_ttf
+
+          if [ -f "external/download.sh" ]; then
+            chmod +x external/download.sh
+            ./external/download.sh
+          else
+            echo "SDL2_ttf download.sh not found"
+          fi
+
+          cd ../..
+
+          echo "=== Check dependencies ==="
+
+          echo "--- SDL2_image ---"
           find external/SDL_image/external -maxdepth 2 -type d -print || true
+
+          echo "--- SDL2_ttf ---"
+          find external/SDL_ttf/external -maxdepth 2 -type d -print || true
+
+      - name: Verify FreeType
+        run: |
+          set -e
+
+          echo "Searching for FreeType..."
+
+          find external/SDL_ttf -iname "CMakeLists.txt" -o -iname "ft2build.h" | head -50
+
+          if find external/SDL_ttf -type f -name "ft2build.h" | grep -q .; then
+            echo "FreeType found."
+          else
+            echo "ERROR: FreeType was not downloaded."
+            exit 1
+          fi
 
       - name: Configure iOS ARM64
         run: |
@@ -73,7 +109,7 @@ jobs:
             -DSDL2IMAGE_VENDORED=ON \
             -DSDL2IMAGE_SAMPLES=OFF \
             -DSDL2IMAGE_TESTS=OFF \
-            -DSDL2TTF_VENDORED=OFF \
+            -DSDL2TTF_VENDORED=ON \
             -DSDL2TTF_SAMPLES=OFF \
             -DSDL2TTF_TESTS=OFF \
             -DCMAKE_BUILD_TYPE=Release
@@ -81,12 +117,22 @@ jobs:
       - name: Build iOS ARM64
         run: |
           set -e
-          cmake --build build --config Release --parallel 4
+
+          cmake \
+            --build build \
+            --config Release \
+            --parallel 4
 
       - name: Find application
         run: |
           set -e
-          find build -type d -name "*.app" -print
+
+          echo "Searching for application..."
+
+          find build \
+            -type d \
+            -name "*.app" \
+            -print
 
       - name: Verify iOS ARM64
         run: |
@@ -102,7 +148,8 @@ jobs:
           BIN="$APP/th06"
 
           if [ ! -f "$BIN" ]; then
-            echo "ERROR: executable not found: $BIN"
+            echo "ERROR: executable not found:"
+            echo "$BIN"
             exit 1
           fi
 
@@ -115,7 +162,14 @@ jobs:
           echo "===== PLATFORM ====="
           otool -l "$BIN" | grep -A8 LC_BUILD_VERSION || true
 
-          lipo -info "$BIN" | grep -q arm64
+          echo "===== CHECK ARM64 ====="
+
+          if ! lipo -info "$BIN" | grep -q arm64; then
+            echo "ERROR: ARM64 architecture not found"
+            exit 1
+          fi
+
+          echo "===== CHECK iOS ====="
 
           if ! otool -l "$BIN" | grep -A8 LC_BUILD_VERSION | grep -q PLATFORM_IOS; then
             echo "ERROR: binary is not an iOS binary"
@@ -131,6 +185,8 @@ jobs:
           set -e
 
           APP="$(find build -type d -name 'th06.app' | head -n 1)"
+
+          echo "Packaging resources..."
 
           if [ -d "resources" ]; then
             cp -R resources "$APP/"
@@ -157,16 +213,27 @@ jobs:
 
           APP="$(find build -type d -name 'th06.app' | head -n 1)"
 
+          if [ -z "$APP" ]; then
+            echo "ERROR: Cannot find th06.app"
+            exit 1
+          fi
+
           rm -rf Payload
+
           mkdir -p Payload
 
           cp -R "$APP" Payload/th06.app
 
+          echo "===== Payload ====="
+          find Payload -maxdepth 3 -print
+
           cd Payload
+
           zip -r ../th06.ipa th06.app
+
           cd ..
 
-          echo "===== IPA ====="
+          echo "===== IPA CREATED ====="
           ls -lh th06.ipa
 
       - name: Upload IPA
