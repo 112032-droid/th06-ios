@@ -9,27 +9,15 @@ jobs:
         run: brew install premake sdl2 sdl2_mixer
       - name: Build
         run: |
-          ls
-          cat premake5.lua || cat premake.lua || true
-          premake5 --version
-          premake5 gmake2 || premake5 gmake || premake5 xcode4
-          ls
-          make -j4 || make -f Makefile || true
-          echo "--- SEARCH APP ---"
+          premake5 gmake2
+          make -C build -j4
+          ls build/
           find. -name "*.app" -type d
           APP=$(find. -name "*.app" -type d | head -n 1)
-          echo "APP is: $APP"
+          echo "APP=$APP"
           mkdir -p Payload
-          if [ -z "$APP" ]; then
-            echo "No.app found, try build folder"
-            find. -type f -name "th06*" | head -n 20
-            # 如果還是沒有，直接把編出來的執行檔包成假app
-            mkdir -p Payload/th06.app
-            cp th06 Payload/th06.app/ 2>/dev/null || cp th06_*/th06 Payload/th06.app/ 2>/dev/null || true
-          else
-            cp -R "$APP" Payload/
-          fi
-          ls -R Payload
+          cp -R "$APP" Payload/ 2>/dev/null || cp -R build/*.app Payload/ 2>/dev/null || true
+          ls -lhR Payload
           zip -r th06.ipa Payload
           ls -lh th06.ipa
       - uses: actions/upload-artifact@v4
