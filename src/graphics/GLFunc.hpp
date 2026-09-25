@@ -14,6 +14,75 @@ typedef GLfloat GLclampd;
 #ifndef GLbitfield
 typedef unsigned int GLbitfield;
 #endif
+
+// 補上 iOS 缺少的 PFNGL 函式指標型別定義
+#ifndef PFNGLATTACHSHADERPROC
+typedef void (*PFNGLATTACHSHADERPROC) (GLuint program, GLuint shader);
+#endif
+#ifndef PFNGLBINDATTRIBLOCATIONPROC
+typedef void (*PFNGLBINDATTRIBLOCATIONPROC) (GLuint program, GLuint index, const GLchar* name);
+#endif
+#ifndef PFNGLCOMPILESHADERPROC
+typedef void (*PFNGLCOMPILESHADERPROC) (GLuint shader);
+#endif
+#ifndef PFNGLCREATEPROGRAMPROC
+typedef GLuint (*PFNGLCREATEPROGRAMPROC) (void);
+#endif
+#ifndef PFNGLCREATESHADERPROC
+typedef GLuint (*PFNGLCREATESHADERPROC) (GLenum type);
+#endif
+#ifndef PFNGLDELETEPROGRAMPROC
+typedef void (*PFNGLDELETEPROGRAMPROC) (GLuint program);
+#endif
+#ifndef PFNGLDELETESHADERPROC
+typedef void (*PFNGLDELETESHADERPROC) (GLuint shader);
+#endif
+#ifndef PFNGLDISABLEVERTEXATTRIBARRAYPROC
+typedef void (*PFNGLDISABLEVERTEXATTRIBARRAYPROC) (GLuint index);
+#endif
+#ifndef PFNGLENABLEVERTEXATTRIBARRAYPROC
+typedef void (*PFNGLENABLEVERTEXATTRIBARRAYPROC) (GLuint index);
+#endif
+#ifndef PFNGLGETPROGRAMINFOLOGPROC
+typedef void (*PFNGLGETPROGRAMINFOLOGPROC) (GLuint program, GLsizei bufSize, GLsizei* length, GLchar* infoLog);
+#endif
+#ifndef PFNGLGETPROGRAMIVPROC
+typedef void (*PFNGLGETPROGRAMIVPROC) (GLuint program, GLenum pname, GLint* params);
+#endif
+#ifndef PFNGLGETSHADERINFOLOGPROC
+typedef void (*PFNGLGETSHADERINFOLOGPROC) (GLuint shader, GLsizei bufSize, GLsizei* length, GLchar* infoLog);
+#endif
+#ifndef PFNGLGETSHADERIVPROC
+typedef void (*PFNGLGETSHADERIVPROC) (GLuint shader, GLenum pname, GLint* params);
+#endif
+#ifndef PFNGLGETUNIFORMLOCATIONPROC
+typedef GLint (*PFNGLGETUNIFORMLOCATIONPROC) (GLuint program, const GLchar* name);
+#endif
+#ifndef PFNGLLINKPROGRAMPROC
+typedef void (*PFNGLLINKPROGRAMPROC) (GLuint program);
+#endif
+#ifndef PFNGLSHADERSOURCEPROC
+typedef void (*PFNGLSHADERSOURCEPROC) (GLuint shader, GLsizei count, const GLchar* const* string, const GLint* length);
+#endif
+#ifndef PFNGLUNIFORM1FPROC
+typedef void (*PFNGLUNIFORM1FPROC) (GLint location, GLfloat v0);
+#endif
+#ifndef PFNGLUNIFORM1IPROC
+typedef void (*PFNGLUNIFORM1IPROC) (GLint location, GLint v0);
+#endif
+#ifndef PFNGLUNIFORM4FPROC
+typedef void (*PFNGLUNIFORM4FPROC) (GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
+#endif
+#ifndef PFNGLUNIFORMMATRIX4FVPROC
+typedef void (*PFNGLUNIFORMMATRIX4FVPROC) (GLint location, GLsizei count, GLboolean transpose, const GLfloat* value);
+#endif
+#ifndef PFNGLUSEPROGRAMPROC
+typedef void (*PFNGLUSEPROGRAMPROC) (GLuint program);
+#endif
+#ifndef PFNGLVERTEXATTRIBPOINTERPROC
+typedef void (*PFNGLVERTEXATTRIBPOINTERPROC) (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid* pointer);
+#endif
+
 #else
 #include <SDL2/SDL_opengl.h>
 #endif
