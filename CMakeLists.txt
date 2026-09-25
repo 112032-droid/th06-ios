@@ -1,9 +1,18 @@
-cmake_minimum_required(VERSION 3.24)
+CMake_minimum_required(VERSION 3.24)
 
 project(th06 LANGUAGES C CXX OBJC)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ============================================================
+# 全域關閉 Xcode 專案中所有目標（包含第三方依賴庫如 tiff）的簽署
+# ============================================================
+if(CMAKE_GENERATOR STREQUAL "Xcode")
+    set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "NO")
+    set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO")
+    set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
+endif()
 
 message(STATUS "========================================")
 message(STATUS "Building Touhou th06 for iOS")
