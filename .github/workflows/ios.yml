@@ -12,18 +12,12 @@ jobs:
           premake5 gmake2
           sed -i '' 's/-Werror//g' build/*.make || true
           make -C build -j4 CXXFLAGS="-w" CFLAGS="-w"
-          echo "=== BUILD DONE ==="
           ls -lh build/
-          mkdir -p Payload
-          APP=$(find. -name "*.app" -type d | head -n 1)
-          echo "APP=$APP"
-          if [ -n "$APP" ]; then
-            cp -R "$APP" Payload/
-          else
-            mkdir -p Payload/th06.app
-            cp build/th06 Payload/th06.app/ 2>/dev/null || cp build/gmake2/th06 Payload/th06.app/ || true
-            ls build/
-          fi
+          mkdir -p Payload/th06.app
+          # 把編好的執行檔放進.app
+          cp build/th06 Payload/th06.app/ 2>/dev/null || find build -type f -name "th06*" -exec cp {} Payload/th06.app/ \; || true
+          # 建一個最基本的 Info.plist 讓它能被辨識成 APP
+          echo '<?xml version="1.0"?><plist><dict><key>CFBundleExecutable</key><string>th06</string><key>CFBundleIdentifier</key><string>com.touhou.th06</string><key>CFBundleName</key><string>th06</string></dict></plist>' > Payload/th06.app/Info.plist
           ls -R Payload
           zip -r th06.ipa Payload
           ls -lh th06.ipa
