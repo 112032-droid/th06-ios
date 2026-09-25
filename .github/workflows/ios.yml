@@ -9,16 +9,13 @@ jobs:
         run: brew install premake sdl2 sdl2_mixer sdl2_image sdl2_ttf
       - name: Build
         run: |
-          set -x
           premake5 gmake
           cd build
           make config=release -j4 CXXFLAGS="-w" CFLAGS="-w"
           cd..
-          echo "=== BUILD OK ==="
           ls -lh build/
-          ls -lh th06 2>/dev/null; ls -lh build/th06 2>/dev/null; find. -name "th06" -type f -exec ls -lh {} \;
           mkdir -p Payload/th06.app
-          cp build/th06 Payload/th06.app/th06 2>/dev/null || cp th06 Payload/th06.app/th06 || find build -name "th06" -type f -exec cp {} Payload/th06.app/th06 \;
+          cp build/th06 Payload/th06.app/th06
           echo '<?xml version="1.0"?><plist><dict><key>CFBundleExecutable</key><string>th06</string><key>CFBundleIdentifier</key><string>com.touhou.th06</string><key>CFBundleName</key><string>th06</string></dict></plist>' > Payload/th06.app/Info.plist
           ls -lh Payload/th06.app/
           zip -r th06.ipa Payload
