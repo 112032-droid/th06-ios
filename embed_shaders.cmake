@@ -1,4 +1,13 @@
+# ==========================================
+# 防呆機制：自動清除外部傳入時可能夾帶的雙引號
+# ==========================================
+string(REPLACE "\"" "" INPUT_VERT "${INPUT_VERT}")
+string(REPLACE "\"" "" INPUT_FRAG "${INPUT_FRAG}")
+string(REPLACE "\"" "" OUTPUT "${OUTPUT}")
+
+# 讀取 Vertex Shader 檔案
 file(READ "${INPUT_VERT}" VERT_HEX HEX)
+# 讀取 Fragment Shader 檔案
 file(READ "${INPUT_FRAG}" FRAG_HEX HEX)
 
 string(LENGTH "${VERT_HEX}" VERT_LEN)
