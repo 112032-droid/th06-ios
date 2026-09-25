@@ -19,7 +19,7 @@ jobs:
           xcrun --sdk iphoneos --show-sdk-path
           xcrun --sdk iphoneos --show-sdk-version
 
-      - name: Download SDL2
+      - name: Download SDL2 and dependencies
         run: |
           set -e
           mkdir -p external
@@ -36,14 +36,22 @@ jobs:
             https://github.com/libsdl-org/SDL_ttf.git \
             external/SDL_ttf
 
-          echo "SDL2:"
-          git -C external/SDL describe --tags --always
+          echo "Downloading SDL2_image dependencies..."
 
-          echo "SDL2_image:"
-          git -C external/SDL_image describe --tags --always
+          cd external/SDL_image
 
-          echo "SDL2_ttf:"
-          git -C external/SDL_ttf describe --tags --always
+          if [ -f "external/download.sh" ]; then
+            chmod +x external/download.sh
+            ./external/download.sh
+          else
+            echo "SDL2_image download.sh not found"
+            find external -maxdepth 2 -type f -print
+          fi
+
+          cd ../..
+
+          echo "Checking SDL2_image dependencies:"
+          find external/SDL_image/external -maxdepth 2 -type d -print || true
 
       - name: Configure iOS ARM64
         run: |
@@ -62,7 +70,7 @@ jobs:
             -DSDL_TESTS=OFF \
             -DSDL_SHARED=OFF \
             -DSDL_STATIC=ON \
-            -DSDL2IMAGE_VENDORED=OFF \
+            -DSDL2IMAGE_VENDORED=ON \
             -DSDL2IMAGE_SAMPLES=OFF \
             -DSDL2IMAGE_TESTS=OFF \
             -DSDL2TTF_VENDORED=OFF \
@@ -73,16 +81,11 @@ jobs:
       - name: Build iOS ARM64
         run: |
           set -e
-
-          cmake --build build \
-            --config Release \
-            --parallel 4
+          cmake --build build --config Release --parallel 4
 
       - name: Find application
         run: |
           set -e
-
-          echo "Searching for .app:"
           find build -type d -name "*.app" -print
 
       - name: Verify iOS ARM64
@@ -99,7 +102,7 @@ jobs:
           BIN="$APP/th06"
 
           if [ ! -f "$BIN" ]; then
-            echo "ERROR: executable not found"
+            echo "ERROR: executable not found: $BIN"
             exit 1
           fi
 
@@ -112,10 +115,7 @@ jobs:
           echo "===== PLATFORM ====="
           otool -l "$BIN" | grep -A8 LC_BUILD_VERSION || true
 
-          if ! lipo -info "$BIN" | grep -q arm64; then
-            echo "ERROR: arm64 not found"
-            exit 1
-          fi
+          lipo -info "$BIN" | grep -q arm64
 
           if ! otool -l "$BIN" | grep -A8 LC_BUILD_VERSION | grep -q PLATFORM_IOS; then
             echo "ERROR: binary is not an iOS binary"
