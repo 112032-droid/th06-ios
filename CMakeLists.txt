@@ -110,13 +110,16 @@ add_executable(
 
 
 # ============================================================
-# Include directories
+# Include directories (已補上 SDL 相關標頭檔搜尋路徑)
 # ============================================================
 
 target_include_directories(
     th06
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/SDL/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/SDL_image/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/SDL_ttf/include
 )
 
 
