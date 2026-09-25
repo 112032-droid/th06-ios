@@ -10,9 +10,7 @@ jobs:
       - name: Build
         run: |
           premake5 gmake
-          cd build
-          make config=release -j4 CXXFLAGS="-w" CFLAGS="-w"
-          cd..
+          make -C build config=release -j4 CXXFLAGS="-w" CFLAGS="-w"
           ls -lh build/
           mkdir -p Payload/th06.app
           cp build/th06 Payload/th06.app/th06
