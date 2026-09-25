@@ -1,100 +1,75 @@
 name: Build IPA online
-
 on:
   push:
-
 jobs:
   build:
     runs-on: macos-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Install deps
         run: |
-          brew install premake sdl2 sdl2_mixer sdl2_ttf
-          echo "PATH=$PATH"
-          which premake5 || true
-          which premake || true
+          brew install premake sdl2 sdl2_image sdl2_mixer sdl2_ttf
+          echo "=== Homebrew ==="
+          brew --prefix
+          brew list --versions sdl2 sdl2_image sdl2_mixer sdl2_ttf
+          which premake5
+          premake5 --version
+
+      - name: Configure SDL2 paths
+        run: |
+          echo "PKG_CONFIG_PATH=$(brew --prefix)/lib/pkgconfig" >> "$GITHUB_ENV"
+          echo "CPPFLAGS=-I$(brew --prefix)/include" >> "$GITHUB_ENV"
+          echo "LDFLAGS=-L$(brew --prefix)/lib" >> "$GITHUB_ENV"
 
       - name: Build
         shell: bash
         run: |
           set -e
-
           echo "=== Generate Makefile ==="
-          premake5 gmake2 || premake gmake2
-
+          premake5 gmake || premake5 gmake2
           echo "=== Build th06 ==="
-          make -C build -j4 CXXFLAGS="-w" CFLAGS="-w"
-
+          make -C build -j4 CXXFLAGS="-w -I$(brew --prefix)/include" CFLAGS="-w -I$(brew --prefix)/include" LDFLAGS="-L$(brew --prefix)/lib"
           echo "=== List build ==="
           ls -lah build/
-
-          echo "=== Find th06 ==="
+          echo "=== Search th06 ==="
           TH06_BIN=""
-
-          if [ -f "build/th06" ]; then
-            TH06_BIN="build/th06"
-          elif [ -f "build/debug/th06" ]; then
-            TH06_BIN="build/debug/th06"
-          elif [ -f "build/Release/th06" ]; then
-            TH06_BIN="build/Release/th06"
+          if [ -f "build/th06" ]; then TH06_BIN="build/th06"
+          elif [ -f "build/Debug/th06" ]; then TH06_BIN="build/Debug/th06"
+          elif [ -f "build/Release/th06" ]; then TH06_BIN="build/Release/th06"
+          elif [ -f "build/debug/th06" ]; then TH06_BIN="build/debug/th06"
+          elif [ -f "th06" ]; then TH06_BIN="th06"
           fi
-
           if [ -z "$TH06_BIN" ]; then
             echo "ERROR: th06 binary not found"
-            find build -type f -maxdepth 4 -print 2>/dev/null || true
+            ls -R build/
             exit 1
           fi
-
           echo "Found: $TH06_BIN"
+          file "$TH06_BIN"
           ls -lh "$TH06_BIN"
-
           echo "=== Create app ==="
+          rm -rf Payload
           mkdir -p Payload/th06.app
-
           cp "$TH06_BIN" Payload/th06.app/th06
           chmod +x Payload/th06.app/th06
-
-          echo "=== Create Info.plist ==="
           cat > Payload/th06.app/Info.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
-              <key>CFBundleExecutable</key>
-              <string>th06</string>
-
-              <key>CFBundleIdentifier</key>
-              <string>com.example.th06</string>
-
-              <key>CFBundleName</key>
-              <string>th06</string>
-
-              <key>CFBundleDisplayName</key>
-              <string>東方紅魔郷</string>
-
-              <key>CFBundlePackageType</key>
-              <string>APPL</string>
-
-              <key>CFBundleShortVersionString</key>
-              <string>1.0</string>
-
-              <key>CFBundleVersion</key>
-              <string>1</string>
+            <key>CFBundleExecutable</key><string>th06</string>
+            <key>CFBundleIdentifier</key><string>com.example.th06</string>
+            <key>CFBundleName</key><string>th06</string>
+            <key>CFBundleDisplayName</key><string>東方紅魔郷</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>1.0</string>
+            <key>CFBundleVersion</key><string>1</string>
+            <key>LSRequiresIPhoneOS</key><true/>
           </dict>
           </plist>
           EOF
-
-          echo "=== App contents ==="
           ls -lah Payload/th06.app/
-
-          echo "=== Create IPA ==="
           zip -r th06.ipa Payload
-
-          echo "=== IPA created ==="
           ls -lh th06.ipa
 
       - name: Upload IPA
