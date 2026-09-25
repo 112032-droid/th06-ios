@@ -1,27 +1,104 @@
 name: Build IPA online
-on: [push]
+
+on:
+  push:
+
 jobs:
   build:
     runs-on: macos-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Install deps
-        run: brew install premake sdl2 sdl2_mixer sdl2_image sdl2_ttf
-      - name: Build
         run: |
-          premake5 gmake2
+          brew install premake sdl2 sdl2_mixer sdl2_ttf
+          echo "PATH=$PATH"
+          which premake5 || true
+          which premake || true
+
+      - name: Build
+        shell: bash
+        run: |
+          set -e
+
+          echo "=== Generate Makefile ==="
+          premake5 gmake2 || premake gmake2
+
+          echo "=== Build th06 ==="
           make -C build -j4 CXXFLAGS="-w" CFLAGS="-w"
-          echo "=== list build ==="
-          ls -lh build/
-          echo "=== find bin ==="
-          find. -type f -name "th06" -exec ls -lh {} \;
+
+          echo "=== List build ==="
+          ls -lah build/
+
+          echo "=== Find th06 ==="
+          TH06_BIN=""
+
+          if [ -f "build/th06" ]; then
+            TH06_BIN="build/th06"
+          elif [ -f "build/debug/th06" ]; then
+            TH06_BIN="build/debug/th06"
+          elif [ -f "build/Release/th06" ]; then
+            TH06_BIN="build/Release/th06"
+          fi
+
+          if [ -z "$TH06_BIN" ]; then
+            echo "ERROR: th06 binary not found"
+            find build -type f -maxdepth 4 -print 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "Found: $TH06_BIN"
+          ls -lh "$TH06_BIN"
+
+          echo "=== Create app ==="
           mkdir -p Payload/th06.app
-          find. -type f -name "th06" -size +100k -exec cp {} Payload/th06.app/th06 \;
-          echo '<?xml version="1.0"?><plist><dict><key>CFBundleExecutable</key><string>th06</string><key>CFBundleIdentifier</key><string>com.touhou.th06</string><key>CFBundleName</key><string>th06</string></dict></plist>' > Payload/th06.app/Info.plist
-          ls -lh Payload/th06.app/
+
+          cp "$TH06_BIN" Payload/th06.app/th06
+          chmod +x Payload/th06.app/th06
+
+          echo "=== Create Info.plist ==="
+          cat > Payload/th06.app/Info.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>th06</string>
+
+              <key>CFBundleIdentifier</key>
+              <string>com.example.th06</string>
+
+              <key>CFBundleName</key>
+              <string>th06</string>
+
+              <key>CFBundleDisplayName</key>
+              <string>東方紅魔郷</string>
+
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+
+              <key>CFBundleShortVersionString</key>
+              <string>1.0</string>
+
+              <key>CFBundleVersion</key>
+              <string>1</string>
+          </dict>
+          </plist>
+          EOF
+
+          echo "=== App contents ==="
+          ls -lah Payload/th06.app/
+
+          echo "=== Create IPA ==="
           zip -r th06.ipa Payload
+
+          echo "=== IPA created ==="
           ls -lh th06.ipa
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
         with:
           name: th06-ipa
           path: th06.ipa
