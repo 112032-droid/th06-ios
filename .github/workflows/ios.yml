@@ -12,30 +12,43 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check iOS SDK
+      - name: Check Xcode and iOS SDK
         run: |
           set -e
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-path
           xcrun --sdk iphoneos --show-sdk-version
 
-      - name: Download SDL2 and dependencies
+      - name: Download SDL2
         run: |
           set -e
           mkdir -p external
 
-          git clone --depth 1 https://github.com/libsdl-org/SDL.git external/SDL
-          git clone --depth 1 https://github.com/libsdl-org/SDL_image.git external/SDL_image
-          git clone --depth 1 https://github.com/libsdl-org/SDL_ttf.git external/SDL_ttf
+          git clone --depth 1 --branch release-2.32.8 \
+            https://github.com/libsdl-org/SDL.git \
+            external/SDL
 
-          cd external/SDL_image
-          if [ -f ./external/download.sh ]; then
-            ./external/download.sh
-          fi
+          git clone --depth 1 --branch release-2.8.8 \
+            https://github.com/libsdl-org/SDL_image.git \
+            external/SDL_image
+
+          git clone --depth 1 --branch release-2.24.0 \
+            https://github.com/libsdl-org/SDL_ttf.git \
+            external/SDL_ttf
+
+          echo "SDL2:"
+          git -C external/SDL describe --tags --always
+
+          echo "SDL2_image:"
+          git -C external/SDL_image describe --tags --always
+
+          echo "SDL2_ttf:"
+          git -C external/SDL_ttf describe --tags --always
 
       - name: Configure iOS ARM64
         run: |
           set -e
+
           rm -rf build
 
           cmake \
@@ -46,25 +59,33 @@ jobs:
             -DCMAKE_OSX_SYSROOT=iphoneos \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
-            -DSDL2IMAGE_VENDORED=ON \
+            -DSDL_TESTS=OFF \
+            -DSDL_SHARED=OFF \
+            -DSDL_STATIC=ON \
+            -DSDL2IMAGE_VENDORED=OFF \
             -DSDL2IMAGE_SAMPLES=OFF \
             -DSDL2IMAGE_TESTS=OFF \
-            -DSDL2TTF_VENDORED=ON \
+            -DSDL2TTF_VENDORED=OFF \
             -DSDL2TTF_SAMPLES=OFF \
             -DSDL2TTF_TESTS=OFF \
             -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build ARM64
+      - name: Build iOS ARM64
         run: |
           set -e
-          cmake --build build --config Release --parallel 4
 
-      - name: Find app
+          cmake --build build \
+            --config Release \
+            --parallel 4
+
+      - name: Find application
         run: |
           set -e
-          find build -maxdepth 8 -type d -name "*.app" -print
 
-      - name: Verify iOS ARM64 binary
+          echo "Searching for .app:"
+          find build -type d -name "*.app" -print
+
+      - name: Verify iOS ARM64
         run: |
           set -e
 
@@ -78,27 +99,32 @@ jobs:
           BIN="$APP/th06"
 
           if [ ! -f "$BIN" ]; then
-            echo "ERROR: executable not found: $BIN"
+            echo "ERROR: executable not found"
             exit 1
           fi
 
-          echo "=== file ==="
+          echo "===== FILE ====="
           file "$BIN"
 
-          echo "=== lipo ==="
+          echo "===== LIPO ====="
           lipo -info "$BIN"
 
-          echo "=== build platform ==="
+          echo "===== PLATFORM ====="
           otool -l "$BIN" | grep -A8 LC_BUILD_VERSION || true
 
-          lipo -info "$BIN" | grep -q arm64
-
-          if otool -l "$BIN" | grep -A8 LC_BUILD_VERSION | grep -q PLATFORM_IOS; then
-            echo "iOS ARM64 verification PASSED"
-          else
-            echo "ERROR: binary is not marked as iOS"
+          if ! lipo -info "$BIN" | grep -q arm64; then
+            echo "ERROR: arm64 not found"
             exit 1
           fi
+
+          if ! otool -l "$BIN" | grep -A8 LC_BUILD_VERSION | grep -q PLATFORM_IOS; then
+            echo "ERROR: binary is not an iOS binary"
+            exit 1
+          fi
+
+          echo "================================"
+          echo "iOS ARM64 verification PASSED"
+          echo "================================"
 
       - name: Package game resources
         run: |
@@ -122,7 +148,7 @@ jobs:
             cp "東方紅魔郷" "$APP/"
           fi
 
-          echo "=== App contents ==="
+          echo "===== APP CONTENTS ====="
           find "$APP" -maxdepth 3 -print
 
       - name: Create IPA
@@ -133,12 +159,14 @@ jobs:
 
           rm -rf Payload
           mkdir -p Payload
+
           cp -R "$APP" Payload/th06.app
 
           cd Payload
           zip -r ../th06.ipa th06.app
           cd ..
 
+          echo "===== IPA ====="
           ls -lh th06.ipa
 
       - name: Upload IPA
