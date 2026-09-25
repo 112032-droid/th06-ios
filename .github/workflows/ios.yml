@@ -11,12 +11,12 @@ jobs:
         run: |
           premake5 gmake2
           make -C build -j4
-          ls build/
+          echo "---- find app ----"
           find. -name "*.app" -type d
           APP=$(find. -name "*.app" -type d | head -n 1)
           echo "APP=$APP"
           mkdir -p Payload
-          cp -R "$APP" Payload/ 2>/dev/null || cp -R build/*.app Payload/ 2>/dev/null || true
+          cp -R "$APP" Payload/ || cp -R build/*.app Payload/ || true
           ls -lhR Payload
           zip -r th06.ipa Payload
           ls -lh th06.ipa
