@@ -1,4 +1,4 @@
-CMake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.24)
 
 project(th06 LANGUAGES C CXX OBJC)
 
@@ -208,12 +208,12 @@ if(
             -DINPUT_VERT="${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/ff.vert"
             -DINPUT_FRAG="${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/ff.frag"
             -DOUTPUT="${EMBED_HEADER}"
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_shaders.cmake"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.cmake"
 
         DEPENDS
             "${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/ff.vert"
             "${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/ff.frag"
-            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_shaders.cmake"
+            "${CMAKE_CURRENT_SOURCE_DIR}/embed_shaders.cmake"
 
         VERBATIM
     )
