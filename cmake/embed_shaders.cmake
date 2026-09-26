@@ -6,8 +6,11 @@ string(LENGTH "${FRAG_HEX}" FRAG_LEN)
 
 file(WRITE "${OUTPUT}" "#pragma once\n\n")
 
+# ============================================================
 # Vertex shader
-file(APPEND "${OUTPUT}" "static const unsigned char vertShaderBytes[] = {\n")
+# ============================================================
+
+file(APPEND "${OUTPUT}" "static const char vertShaderBytes[] = {\n")
 
 if(VERT_LEN GREATER 0)
     math(EXPR VERT_LAST "${VERT_LEN} - 2")
@@ -18,10 +21,15 @@ if(VERT_LEN GREATER 0)
     endforeach()
 endif()
 
-file(APPEND "${OUTPUT}" "0};\n\n")
+# Null terminator
+file(APPEND "${OUTPUT}" "0x00};\n\n")
 
+
+# ============================================================
 # Fragment shader
-file(APPEND "${OUTPUT}" "static const unsigned char fragShaderBytes[] = {\n")
+# ============================================================
+
+file(APPEND "${OUTPUT}" "static const char fragShaderBytes[] = {\n")
 
 if(FRAG_LEN GREATER 0)
     math(EXPR FRAG_LAST "${FRAG_LEN} - 2")
@@ -32,4 +40,5 @@ if(FRAG_LEN GREATER 0)
     endforeach()
 endif()
 
-file(APPEND "${OUTPUT}" "0};\n")
+# Null terminator
+file(APPEND "${OUTPUT}" "0x00};\n")
