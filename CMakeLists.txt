@@ -68,6 +68,9 @@ file(GLOB_RECURSE TH06_SOURCES CONFIGURE_DEPENDS
 # Linux:
 #   MidiAlsa.cpp
 #
+# Default:
+#   MidiDefault.cpp
+#
 # iOS:
 #   MidiCoreAudio.cpp
 # ============================================================
@@ -91,6 +94,17 @@ if(IOS)
     )
     message(STATUS "Excluded Linux ALSA MIDI backend:")
     message(STATUS "  src/midi/MidiAlsa.cpp")
+    # --------------------------------------------------------
+    # 排除 Default MIDI backend
+    #
+    # iOS 使用 MidiCoreAudio.cpp
+    # 不可以同時編譯 MidiDefault.cpp
+    # --------------------------------------------------------
+    list(FILTER TH06_SOURCES EXCLUDE REGEX
+        ".*/MidiDefault\\.cpp$"
+    )
+    message(STATUS "Excluded Default MIDI backend:")
+    message(STATUS "  src/midi/MidiDefault.cpp")
     # --------------------------------------------------------
     # 使用 Apple CoreAudio MIDI backend
     # --------------------------------------------------------
@@ -292,3 +306,10 @@ if(IOS)
     message(STATUS "iOS Entry Point: src/main_ios.mm")
 endif()
 message(STATUS "========================================")
+
+
+
+list(FILTER TH06_SOURCES EXCLUDE REGEX
+    ".*/MidiDefault\\.cpp$"
+)
+
