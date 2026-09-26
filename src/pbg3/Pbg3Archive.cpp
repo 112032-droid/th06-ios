@@ -19,51 +19,94 @@ i32 Pbg3Archive::ParseHeader()
 {
     if (this->parser->ReadMagic() != 0x33474250)
     {
+        utils::DebugPrint2(
+            "PBG3: invalid magic\n"
+        );
+
         if (this->parser != NULL)
         {
             delete this->parser;
             this->parser = NULL;
         }
+
         return false;
     }
 
     this->numOfEntries = this->parser->ReadVarInt();
     this->fileTableOffset = this->parser->ReadVarInt();
+
+    utils::DebugPrint2(
+        "PBG3: ParseHeader entries=%u tableOffset=%u\n",
+        this->numOfEntries,
+        this->fileTableOffset
+    );
+
     if (!this->parser->SeekToOffset(this->fileTableOffset))
     {
+        utils::DebugPrint2(
+            "PBG3: failed to seek file table\n"
+        );
+
         if (this->parser != NULL)
         {
             delete this->parser;
             this->parser = NULL;
         }
+
         return false;
     }
 
     this->entries = new Pbg3Entry[this->numOfEntries];
+
     if (this->entries == NULL)
     {
+        utils::DebugPrint2(
+            "PBG3: failed to allocate entries\n"
+        );
+
         if (this->parser != NULL)
         {
             delete this->parser;
             this->parser = NULL;
         }
+
         return false;
     }
 
-    for (u32 idx = 0; idx < this->numOfEntries; idx += 1)
+    for (u32 idx = 0;
+         idx < this->numOfEntries;
+         idx += 1)
     {
-        this->entries[idx].unk2 = this->parser->ReadVarInt();
-        this->entries[idx].unk1 = this->parser->ReadVarInt();
-        this->entries[idx].checksum = this->parser->ReadVarInt();
-        this->entries[idx].dataOffset = this->parser->ReadVarInt();
-        this->entries[idx].uncompressedSize = this->parser->ReadVarInt();
-        if (!this->parser->ReadString(this->entries[idx].filename, sizeof(this->entries[idx].filename)))
+        this->entries[idx].unk2 =
+            this->parser->ReadVarInt();
+
+        this->entries[idx].unk1 =
+            this->parser->ReadVarInt();
+
+        this->entries[idx].checksum =
+            this->parser->ReadVarInt();
+
+        this->entries[idx].dataOffset =
+            this->parser->ReadVarInt();
+
+        this->entries[idx].uncompressedSize =
+            this->parser->ReadVarInt();
+
+        if (!this->parser->ReadString(
+                this->entries[idx].filename,
+                sizeof(this->entries[idx].filename)))
         {
+            utils::DebugPrint2(
+                "PBG3: failed to read filename at entry %u\n",
+                idx
+            );
+
             if (this->parser != NULL)
             {
                 delete this->parser;
                 this->parser = NULL;
             }
+
             if (this->entries != NULL)
             {
                 delete[] this->entries;
@@ -72,7 +115,36 @@ i32 Pbg3Archive::ParseHeader()
 
             return false;
         }
+
+        /*
+         * Only print the TH06 files we are investigating.
+         */
+        if (std::strcmp(
+                this->entries[idx].filename,
+                "text.anm") == 0 ||
+            std::strcmp(
+                this->entries[idx].filename,
+                "plst00.wav") == 0 ||
+            std::strcmp(
+                this->entries[idx].filename,
+                "pldead00.wav") == 0)
+        {
+            utils::DebugPrint2(
+                "PBG3: RELATED ENTRY index=%u name=[%s] "
+                "offset=%u size=%u checksum=%u\n",
+                idx,
+                this->entries[idx].filename,
+                this->entries[idx].dataOffset,
+                this->entries[idx].uncompressedSize,
+                this->entries[idx].checksum
+            );
+        }
     }
+
+    utils::DebugPrint2(
+        "PBG3: ParseHeader completed, entries=%u\n",
+        this->numOfEntries
+    );
 
     return true;
 }
@@ -81,31 +153,82 @@ i32 Pbg3Archive::Release()
 {
     this->fileTableOffset = 0;
     this->numOfEntries = 0;
+
     if (this->parser != NULL)
     {
         delete this->parser;
         this->parser = NULL;
     }
+
     if (this->entries != NULL)
     {
         delete[] this->entries;
         this->entries = NULL;
     }
+
     std::free(this->unk);
+
     return true;
 }
 
 i32 Pbg3Archive::FindEntry(const char *path)
 {
-    for (u32 entryIdx = 0; entryIdx < this->numOfEntries; entryIdx += 1)
+    if (path == NULL)
     {
-        char *entryFilename = this->entries[entryIdx].filename;
-        i32 res = std::strcmp(path, entryFilename);
-        if (res == 0)
+        utils::DebugPrint2(
+            "PBG3 FindEntry: NULL path\n"
+        );
+
+        return -1;
+    }
+
+    utils::DebugPrint2(
+        "PBG3 FindEntry: searching [%s], entries=%u\n",
+        path,
+        this->numOfEntries
+    );
+
+    for (u32 entryIdx = 0;
+         entryIdx < this->numOfEntries;
+         entryIdx += 1)
+    {
+        char *entryFilename =
+            this->entries[entryIdx].filename;
+
+        if (entryFilename == NULL)
         {
-            return entryIdx;
+            continue;
+        }
+
+        if (std::strcmp(path, entryFilename) == 0)
+        {
+            utils::DebugPrint2(
+                "PBG3 FindEntry: FOUND [%s] "
+                "index=%u size=%u checksum=%u\n",
+                entryFilename,
+                entryIdx,
+                this->entries[entryIdx].uncompressedSize,
+                this->entries[entryIdx].checksum
+            );
+
+            return (i32)entryIdx;
         }
     }
+
+    /*
+     * We only need detailed diagnostics for these
+     * resources.
+     */
+    if (std::strcmp(path, "text.anm") == 0 ||
+        std::strcmp(path, "plst00.wav") == 0 ||
+        std::strcmp(path, "pldead00.wav") == 0)
+    {
+        utils::DebugPrint2(
+            "PBG3 FindEntry: NOT FOUND [%s]\n",
+            path
+        );
+    }
+
     return -1;
 }
 
@@ -119,7 +242,10 @@ u32 Pbg3Archive::GetEntrySize(u32 entryIdx)
     return this->entries[entryIdx].uncompressedSize;
 }
 
-u8 *Pbg3Archive::ReadEntryRaw(u32 *outSize, u32 *outChecksum, i32 entryIdx)
+u8 *Pbg3Archive::ReadEntryRaw(
+    u32 *outSize,
+    u32 *outChecksum,
+    i32 entryIdx)
 {
     if (this->parser == NULL)
     {
@@ -135,31 +261,60 @@ u8 *Pbg3Archive::ReadEntryRaw(u32 *outSize, u32 *outChecksum, i32 entryIdx)
     if (outChecksum == NULL)
         return NULL;
 
-    if (!this->parser->SeekToOffset(this->entries[entryIdx].dataOffset))
+    if (!this->parser->SeekToOffset(
+            this->entries[entryIdx].dataOffset))
+    {
+        utils::DebugPrint2(
+            "PBG3: ReadEntryRaw failed to seek entry=%d\n",
+            entryIdx
+        );
+
         return NULL;
+    }
 
     u32 size;
+
     if (entryIdx == this->numOfEntries - 1)
     {
-        size = this->fileTableOffset - this->entries[entryIdx].dataOffset;
+        size =
+            this->fileTableOffset -
+            this->entries[entryIdx].dataOffset;
     }
     else
     {
-        size = this->entries[entryIdx + 1].dataOffset - this->entries[entryIdx].dataOffset;
+        size =
+            this->entries[entryIdx + 1].dataOffset -
+            this->entries[entryIdx].dataOffset;
     }
 
     u8 *data = (u8 *)malloc(size);
+
     if (data == NULL)
+    {
+        utils::DebugPrint2(
+            "PBG3: ReadEntryRaw malloc failed size=%u\n",
+            size
+        );
+
         return NULL;
+    }
 
     if (!this->parser->ReadByteAlignedData(data, size))
     {
+        utils::DebugPrint2(
+            "PBG3: ReadEntryRaw failed reading entry=%d\n",
+            entryIdx
+        );
+
         free(data);
         return NULL;
     }
 
-    *outChecksum = this->entries[entryIdx].checksum;
+    *outChecksum =
+        this->entries[entryIdx].checksum;
+
     *outSize = size;
+
     return data;
 }
 
@@ -170,28 +325,59 @@ Pbg3Archive::~Pbg3Archive()
 
 i32 Pbg3Archive::Load(const char *path)
 {
+    utils::DebugPrint2(
+        "PBG3: Loading archive [%s]\n",
+        path != NULL ? path : "(null)"
+    );
+
     if (!this->Release())
     {
         return false;
     }
 
     this->parser = new Pbg3Parser();
+
     if (this->parser == NULL)
     {
+        utils::DebugPrint2(
+            "PBG3: failed to create parser\n"
+        );
+
         return false;
     }
 
     if (!this->parser->OpenArchive(path))
     {
+        utils::DebugPrint2(
+            "PBG3: failed to open archive [%s]\n",
+            path != NULL ? path : "(null)"
+        );
+
         if (this->parser != NULL)
         {
             delete this->parser;
             this->parser = NULL;
         }
+
         return false;
     }
 
-    return this->ParseHeader();
+    if (!this->ParseHeader())
+    {
+        utils::DebugPrint2(
+            "PBG3: ParseHeader failed [%s]\n",
+            path != NULL ? path : "(null)"
+        );
+
+        return false;
+    }
+
+    utils::DebugPrint2(
+        "PBG3: archive loaded successfully [%s]\n",
+        path != NULL ? path : "(null)"
+    );
+
+    return true;
 }
 
 #define LZSS_DICTSIZE 0x2000
@@ -244,40 +430,85 @@ i32 Pbg3Archive::Load(const char *path)
         DEC_NEXT_BIT();                                                                                                \
     }
 
-u8 *Pbg3Archive::ReadDecompressEntry(u32 entryIdx, const char *filename)
+u8 *Pbg3Archive::ReadDecompressEntry(
+    u32 entryIdx,
+    const char *filename)
 {
-    if (entryIdx >= this->numOfEntries || this->parser == NULL)
+    if (entryIdx >= this->numOfEntries ||
+        this->parser == NULL)
+    {
+        utils::DebugPrint2(
+            "PBG3 Decompress: invalid entry=%u filename=[%s]\n",
+            entryIdx,
+            filename != NULL ? filename : "(null)"
+        );
+
         return NULL;
+    }
+
+    utils::DebugPrint2(
+        "PBG3 Decompress: START entry=%u filename=[%s]\n",
+        entryIdx,
+        filename != NULL ? filename : "(null)"
+    );
 
     u32 size = this->GetEntrySize(entryIdx);
+
+    utils::DebugPrint2(
+        "PBG3 Decompress: expected uncompressed size=%u\n",
+        size
+    );
+
     u8 *out = (u8 *)malloc(size);
+
     if (out == NULL)
+    {
+        utils::DebugPrint2(
+            "PBG3 Decompress: output malloc failed size=%u\n",
+            size
+        );
+
         return NULL;
+    }
 
     u8 *outCursor = out;
 
     u32 expectedCsum;
-    u8 *rawData = this->ReadEntryRaw(&size, &expectedCsum, entryIdx);
+
+    u8 *rawData =
+        this->ReadEntryRaw(
+            &size,
+            &expectedCsum,
+            entryIdx
+        );
 
     if (rawData == NULL)
     {
-        if (out != NULL)
-        {
-            free(out);
-            out = NULL;
-        }
+        utils::DebugPrint2(
+            "PBG3 Decompress: ReadEntryRaw FAILED "
+            "entry=%u filename=[%s]\n",
+            entryIdx,
+            filename != NULL ? filename : "(null)"
+        );
+
+        free(out);
+        out = NULL;
+
         return NULL;
     }
 
     u8 *inCursor = rawData;
     u8 inBitMask = 0x80;
+
     u32 checksum = 0;
     u32 dictHead = 1;
 
     u8 dict[LZSS_DICTSIZE];
 
     // Memset doesn't produce matching assembly
-    for (i32 i = 0; i < LZSS_DICTSIZE; i++)
+    for (i32 i = 0;
+         i < LZSS_DICTSIZE;
+         i++)
     {
         dict[i] = 0;
     }
@@ -304,6 +535,7 @@ u8 *Pbg3Archive::ReadDecompressEntry(u32 entryIdx, const char *filename)
             DEC_READ_BITS(13);
 
             matchOffset = inBits;
+
             if (matchOffset == 0)
             {
                 break;
@@ -311,9 +543,16 @@ u8 *Pbg3Archive::ReadDecompressEntry(u32 entryIdx, const char *filename)
 
             DEC_READ_BITS(4);
 
-            for (i32 i = 0; i <= (i32)inBits + 2; i++)
+            for (i32 i = 0;
+                 i <= (i32)inBits + 2;
+                 i++)
             {
-                u32 c = dict[(matchOffset + i) & LZSS_DICTSIZE_MASK];
+                u32 c =
+                    dict[
+                        (matchOffset + i) &
+                        LZSS_DICTSIZE_MASK
+                    ];
+
                 DEC_WRITE_BYTE(c);
             }
         }
@@ -329,13 +568,29 @@ u8 *Pbg3Archive::ReadDecompressEntry(u32 entryIdx, const char *filename)
 
     if (this->entries[entryIdx].checksum != checksum)
     {
+        utils::DebugPrint2(
+            "PBG3 Decompress: CHECKSUM FAILED "
+            "filename=[%s] expected=%u actual=%u\n",
+            filename != NULL ? filename : "(null)",
+            this->entries[entryIdx].checksum,
+            checksum
+        );
+
         if (out != NULL)
         {
             free(out);
             out = NULL;
         }
+
         return NULL;
     }
+
+    utils::DebugPrint2(
+        "PBG3 Decompress: SUCCESS filename=[%s] size=%u checksum=%u\n",
+        filename != NULL ? filename : "(null)",
+        this->entries[entryIdx].uncompressedSize,
+        checksum
+    );
 
     return out;
 }
