@@ -6,8 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ============================================================
-# 全域關閉 Xcode 專案中所有目標（包含第三方依賴庫如 tiff）的簽署
+# iOS / Xcode code signing
 # ============================================================
+
 if(CMAKE_GENERATOR STREQUAL "Xcode")
     set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "NO")
     set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO")
@@ -110,16 +111,36 @@ add_executable(
 
 
 # ============================================================
-# Include directories (已補上 SDL 相關標頭檔搜尋路徑)
+# Include directories
+#
+# include/
+# └── SDL2/
+#     ├── SDL.h
+#     ├── SDL_image.h
+#     └── SDL_ttf.h
+#
+# SDL_ttf.h 實際來源：
+# external/SDL_ttf/SDL_ttf.h
 # ============================================================
 
 target_include_directories(
     th06
     PRIVATE
+
+    # Unified SDL2 headers
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+
+    # Project source
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+
+    # SDL2
     ${CMAKE_CURRENT_SOURCE_DIR}/external/SDL/include
+
+    # SDL2_image
     ${CMAKE_CURRENT_SOURCE_DIR}/external/SDL_image/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/SDL_ttf/include
+
+    # SDL2_ttf
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/SDL_ttf
 )
 
 
@@ -152,6 +173,7 @@ target_compile_options(
 target_link_libraries(
     th06
     PRIVATE
+
     SDL2::SDL2-static
     SDL2_image
     SDL2_ttf
