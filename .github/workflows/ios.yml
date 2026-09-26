@@ -403,6 +403,34 @@ jobs:
           echo "All original TH06 DAT files found."
 
       # ============================================================
+      # Check config / log files
+      # ============================================================
+      - name: Check TH06 config and log files
+        run: |
+          set -e
+
+          echo "========================================"
+          echo "CHECK TH06 CONFIG / LOG"
+          echo "========================================"
+
+          if [ -f "game/th06e.cfg" ]; then
+            echo "OK: game/th06e.cfg"
+            ls -lh "game/th06e.cfg"
+          else
+            echo "WARNING: game/th06e.cfg not found"
+          fi
+
+          if [ -f "game/log.txt" ]; then
+            echo "OK: game/log.txt"
+            ls -lh "game/log.txt"
+          else
+            echo "INFO: game/log.txt not found"
+          fi
+
+          echo ""
+          echo "custom_e.exe is intentionally not copied."
+
+      # ============================================================
       # Configure CMake
       # ============================================================
       - name: Configure iOS ARM64
@@ -681,6 +709,44 @@ jobs:
             "$APP_PATH/KOUMAKYO_CM.dat"
 
           echo ""
+          echo "===== Copy configuration ====="
+
+          if [ -f "game/th06e.cfg" ]; then
+            cp "game/th06e.cfg" \
+              "$APP_PATH/th06e.cfg"
+
+            echo "OK: th06e.cfg copied"
+          else
+            echo "WARNING: game/th06e.cfg not found"
+          fi
+
+          echo ""
+          echo "===== Copy log ====="
+
+          if [ -f "game/log.txt" ]; then
+            cp "game/log.txt" \
+              "$APP_PATH/log.txt"
+
+            echo "OK: log.txt copied"
+          else
+            echo "INFO: game/log.txt not found"
+          fi
+
+          echo ""
+          echo "===== CONFIG / LOG IN APP ====="
+
+          if [ -f "$APP_PATH/th06e.cfg" ]; then
+            ls -lh "$APP_PATH/th06e.cfg"
+          fi
+
+          if [ -f "$APP_PATH/log.txt" ]; then
+            ls -lh "$APP_PATH/log.txt"
+          fi
+
+          echo ""
+          echo "custom_e.exe is not copied."
+
+          echo ""
           echo "TH06 game data copied successfully."
 
       # ============================================================
@@ -746,6 +812,23 @@ jobs:
 
           echo ""
           echo "All expected KOUMAKYO DAT files are inside the .app."
+
+          echo ""
+          echo "Checking configuration files:"
+
+          if [ -f "$APP_PATH/th06e.cfg" ]; then
+            echo "OK: th06e.cfg is inside .app"
+            ls -lh "$APP_PATH/th06e.cfg"
+          else
+            echo "WARNING: th06e.cfg is NOT inside .app"
+          fi
+
+          if [ -f "$APP_PATH/log.txt" ]; then
+            echo "OK: log.txt is inside .app"
+            ls -lh "$APP_PATH/log.txt"
+          else
+            echo "INFO: log.txt is NOT inside .app"
+          fi
 
           echo ""
           echo "Checking old incorrect filenames:"
@@ -906,6 +989,23 @@ jobs:
             \) \
             -print \
             -exec ls -lh {} \;
+
+          echo ""
+          echo "Configuration files:"
+
+          for FILE in \
+            th06e.cfg \
+            log.txt
+          do
+
+            if [ -f "$APP_PATH/$FILE" ]; then
+              echo "FOUND: $FILE"
+              ls -lh "$APP_PATH/$FILE"
+            else
+              echo "NOT FOUND: $FILE"
+            fi
+
+          done
 
           echo ""
           echo "Physical WAV files:"
@@ -1227,6 +1327,51 @@ jobs:
 
             echo "ERROR: KOUMAKYO_CM.dat not found in IPA"
             exit 1
+
+          fi
+
+          echo ""
+          echo "Checking th06e.cfg..."
+
+          if grep -qE \
+            'Payload/.+\.app/th06e\.cfg' \
+            ipa-list.txt; then
+
+            echo "OK: th06e.cfg is inside IPA"
+
+          else
+
+            echo "WARNING: th06e.cfg not found in IPA"
+
+          fi
+
+          echo ""
+          echo "Checking log.txt..."
+
+          if grep -qE \
+            'Payload/.+\.app/log\.txt' \
+            ipa-list.txt; then
+
+            echo "OK: log.txt is inside IPA"
+
+          else
+
+            echo "INFO: log.txt not found in IPA"
+
+          fi
+
+          echo ""
+          echo "Checking custom_e.exe..."
+
+          if grep -qE \
+            'Payload/.+\.app/custom_e\.exe' \
+            ipa-list.txt; then
+
+            echo "WARNING: custom_e.exe is inside IPA"
+
+          else
+
+            echo "OK: custom_e.exe is not inside IPA"
 
           fi
 
