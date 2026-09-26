@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <cstdio>
 
 #include "pbg3/Pbg3Archive.hpp"
 
@@ -19,7 +20,7 @@ i32 Pbg3Archive::ParseHeader()
 {
     if (this->parser->ReadMagic() != 0x33474250)
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3: invalid magic\n"
         );
 
@@ -35,7 +36,7 @@ i32 Pbg3Archive::ParseHeader()
     this->numOfEntries = this->parser->ReadVarInt();
     this->fileTableOffset = this->parser->ReadVarInt();
 
-    utils::DebugPrint2(
+    printf(
         "PBG3: ParseHeader entries=%u tableOffset=%u\n",
         this->numOfEntries,
         this->fileTableOffset
@@ -43,7 +44,7 @@ i32 Pbg3Archive::ParseHeader()
 
     if (!this->parser->SeekToOffset(this->fileTableOffset))
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3: failed to seek file table\n"
         );
 
@@ -60,7 +61,7 @@ i32 Pbg3Archive::ParseHeader()
 
     if (this->entries == NULL)
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3: failed to allocate entries\n"
         );
 
@@ -96,7 +97,7 @@ i32 Pbg3Archive::ParseHeader()
                 this->entries[idx].filename,
                 sizeof(this->entries[idx].filename)))
         {
-            utils::DebugPrint2(
+            printf(
                 "PBG3: failed to read filename at entry %u\n",
                 idx
             );
@@ -129,7 +130,7 @@ i32 Pbg3Archive::ParseHeader()
                 this->entries[idx].filename,
                 "pldead00.wav") == 0)
         {
-            utils::DebugPrint2(
+            printf(
                 "PBG3: RELATED ENTRY index=%u name=[%s] "
                 "offset=%u size=%u checksum=%u\n",
                 idx,
@@ -141,7 +142,7 @@ i32 Pbg3Archive::ParseHeader()
         }
     }
 
-    utils::DebugPrint2(
+    printf(
         "PBG3: ParseHeader completed, entries=%u\n",
         this->numOfEntries
     );
@@ -175,14 +176,14 @@ i32 Pbg3Archive::FindEntry(const char *path)
 {
     if (path == NULL)
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3 FindEntry: NULL path\n"
         );
 
         return -1;
     }
 
-    utils::DebugPrint2(
+    printf(
         "PBG3 FindEntry: searching [%s], entries=%u\n",
         path,
         this->numOfEntries
@@ -202,7 +203,7 @@ i32 Pbg3Archive::FindEntry(const char *path)
 
         if (std::strcmp(path, entryFilename) == 0)
         {
-            utils::DebugPrint2(
+            printf(
                 "PBG3 FindEntry: FOUND [%s] "
                 "index=%u size=%u checksum=%u\n",
                 entryFilename,
@@ -223,7 +224,7 @@ i32 Pbg3Archive::FindEntry(const char *path)
         std::strcmp(path, "plst00.wav") == 0 ||
         std::strcmp(path, "pldead00.wav") == 0)
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3 FindEntry: NOT FOUND [%s]\n",
             path
         );
@@ -264,7 +265,7 @@ u8 *Pbg3Archive::ReadEntryRaw(
     if (!this->parser->SeekToOffset(
             this->entries[entryIdx].dataOffset))
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3: ReadEntryRaw failed to seek entry=%d\n",
             entryIdx
         );
@@ -291,7 +292,7 @@ u8 *Pbg3Archive::ReadEntryRaw(
 
     if (data == NULL)
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3: ReadEntryRaw malloc failed size=%u\n",
             size
         );
@@ -301,7 +302,7 @@ u8 *Pbg3Archive::ReadEntryRaw(
 
     if (!this->parser->ReadByteAlignedData(data, size))
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3: ReadEntryRaw failed reading entry=%d\n",
             entryIdx
         );
@@ -325,7 +326,7 @@ Pbg3Archive::~Pbg3Archive()
 
 i32 Pbg3Archive::Load(const char *path)
 {
-    utils::DebugPrint2(
+    printf(
         "PBG3: Loading archive [%s]\n",
         path != NULL ? path : "(null)"
     );
@@ -339,7 +340,7 @@ i32 Pbg3Archive::Load(const char *path)
 
     if (this->parser == NULL)
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3: failed to create parser\n"
         );
 
@@ -348,7 +349,7 @@ i32 Pbg3Archive::Load(const char *path)
 
     if (!this->parser->OpenArchive(path))
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3: failed to open archive [%s]\n",
             path != NULL ? path : "(null)"
         );
@@ -364,7 +365,7 @@ i32 Pbg3Archive::Load(const char *path)
 
     if (!this->ParseHeader())
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3: ParseHeader failed [%s]\n",
             path != NULL ? path : "(null)"
         );
@@ -372,7 +373,7 @@ i32 Pbg3Archive::Load(const char *path)
         return false;
     }
 
-    utils::DebugPrint2(
+    printf(
         "PBG3: archive loaded successfully [%s]\n",
         path != NULL ? path : "(null)"
     );
@@ -437,7 +438,7 @@ u8 *Pbg3Archive::ReadDecompressEntry(
     if (entryIdx >= this->numOfEntries ||
         this->parser == NULL)
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3 Decompress: invalid entry=%u filename=[%s]\n",
             entryIdx,
             filename != NULL ? filename : "(null)"
@@ -446,7 +447,7 @@ u8 *Pbg3Archive::ReadDecompressEntry(
         return NULL;
     }
 
-    utils::DebugPrint2(
+    printf(
         "PBG3 Decompress: START entry=%u filename=[%s]\n",
         entryIdx,
         filename != NULL ? filename : "(null)"
@@ -454,7 +455,7 @@ u8 *Pbg3Archive::ReadDecompressEntry(
 
     u32 size = this->GetEntrySize(entryIdx);
 
-    utils::DebugPrint2(
+    printf(
         "PBG3 Decompress: expected uncompressed size=%u\n",
         size
     );
@@ -463,7 +464,7 @@ u8 *Pbg3Archive::ReadDecompressEntry(
 
     if (out == NULL)
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3 Decompress: output malloc failed size=%u\n",
             size
         );
@@ -484,7 +485,7 @@ u8 *Pbg3Archive::ReadDecompressEntry(
 
     if (rawData == NULL)
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3 Decompress: ReadEntryRaw FAILED "
             "entry=%u filename=[%s]\n",
             entryIdx,
@@ -568,7 +569,7 @@ u8 *Pbg3Archive::ReadDecompressEntry(
 
     if (this->entries[entryIdx].checksum != checksum)
     {
-        utils::DebugPrint2(
+        printf(
             "PBG3 Decompress: CHECKSUM FAILED "
             "filename=[%s] expected=%u actual=%u\n",
             filename != NULL ? filename : "(null)",
@@ -585,7 +586,7 @@ u8 *Pbg3Archive::ReadDecompressEntry(
         return NULL;
     }
 
-    utils::DebugPrint2(
+    printf(
         "PBG3 Decompress: SUCCESS filename=[%s] size=%u checksum=%u\n",
         filename != NULL ? filename : "(null)",
         this->entries[entryIdx].uncompressedSize,
