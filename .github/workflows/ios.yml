@@ -213,11 +213,6 @@ jobs:
           echo "========================================"
           if [ ! -d game ]; then
             echo "ERROR: game/ directory does not exist"
-            echo ""
-            echo "Create:"
-            echo "game/"
-            echo ""
-            echo "Put your TH06 files inside it."
             exit 1
           fi
           echo "game/ found"
@@ -228,39 +223,36 @@ jobs:
           echo "===== Game data size ====="
           du -sh game
       # ============================================================
-      # Check important DAT files
+      # Check ORIGINAL TH06 DAT files
+      #
+      # We keep the GitHub filenames as th06e_*.DAT.
+      # The workflow will rename them when copying into the .app.
       # ============================================================
       - name: Check TH06 DAT files
         run: |
           set -e
           echo "========================================"
-          echo "CHECK TH06 DAT FILES"
+          echo "CHECK ORIGINAL TH06 DAT FILES"
           echo "========================================"
           REQUIRED_FILES="
-          IN.DAT
-          ST.DAT
-          TL.DAT
-          _MD.DAT
-          _ED.DAT
-          _CM.DAT
+          th06e_IN.DAT
+          th06e_ST.DAT
+          th06e_TL.DAT
+          th06e_MD.DAT
+          th06e_ED.DAT
+          th06e_CM.DAT
           "
-          MISSING=0
           for FILE in $REQUIRED_FILES; do
             if [ -f "game/$FILE" ]; then
               SIZE=$(du -h "game/$FILE" | cut -f1)
               echo "OK: $FILE ($SIZE)"
             else
-              echo "WARNING: game/$FILE not found"
-              MISSING=1
+              echo "ERROR: game/$FILE not found"
+              exit 1
             fi
           done
           echo ""
-          if [ "$MISSING" -eq 1 ]; then
-            echo "WARNING: Some DAT files are missing."
-            echo "Build will continue."
-          else
-            echo "All expected DAT files found."
-          fi
+          echo "All original TH06 DAT files found."
       # ============================================================
       # Configure CMake
       # ============================================================
@@ -304,10 +296,15 @@ jobs:
         run: |
           set -e
           echo "===== Build directory ====="
-          find build -maxdepth 2 -type f | head -100
+          find build \
+            -maxdepth 2 \
+            -type f \
+            | head -100
           echo ""
           echo "===== Xcode projects ====="
-          find build -name "*.xcodeproj" -print
+          find build \
+            -name "*.xcodeproj" \
+            -print
       # ============================================================
       # Build
       # ============================================================
@@ -360,9 +357,6 @@ jobs:
             echo "ERROR: Info.plist does not exist"
             exit 1
           fi
-          # --------------------------------------------------------
-          # CFBundleExecutable
-          # --------------------------------------------------------
           /usr/libexec/PlistBuddy \
             -c "Set :CFBundleExecutable th06" \
             "$PLIST" \
@@ -370,9 +364,6 @@ jobs:
           /usr/libexec/PlistBuddy \
             -c "Add :CFBundleExecutable string th06" \
             "$PLIST"
-          # --------------------------------------------------------
-          # CFBundleIdentifier
-          # --------------------------------------------------------
           /usr/libexec/PlistBuddy \
             -c "Set :CFBundleIdentifier com.example.th06" \
             "$PLIST" \
@@ -380,9 +371,6 @@ jobs:
           /usr/libexec/PlistBuddy \
             -c "Add :CFBundleIdentifier string com.example.th06" \
             "$PLIST"
-          # --------------------------------------------------------
-          # CFBundleDisplayName
-          # --------------------------------------------------------
           /usr/libexec/PlistBuddy \
             -c "Set :CFBundleDisplayName 東方紅魔郷" \
             "$PLIST" \
@@ -390,9 +378,6 @@ jobs:
           /usr/libexec/PlistBuddy \
             -c "Add :CFBundleDisplayName string 東方紅魔郷" \
             "$PLIST"
-          # --------------------------------------------------------
-          # CFBundlePackageType
-          # --------------------------------------------------------
           /usr/libexec/PlistBuddy \
             -c "Set :CFBundlePackageType APPL" \
             "$PLIST" \
@@ -400,9 +385,6 @@ jobs:
           /usr/libexec/PlistBuddy \
             -c "Add :CFBundlePackageType string APPL" \
             "$PLIST"
-          # --------------------------------------------------------
-          # LSRequiresIPhoneOS
-          # --------------------------------------------------------
           /usr/libexec/PlistBuddy \
             -c "Set :LSRequiresIPhoneOS true" \
             "$PLIST" \
@@ -410,9 +392,6 @@ jobs:
           /usr/libexec/PlistBuddy \
             -c "Add :LSRequiresIPhoneOS bool true" \
             "$PLIST"
-          # --------------------------------------------------------
-          # Version
-          # --------------------------------------------------------
           /usr/libexec/PlistBuddy \
             -c "Set :CFBundleShortVersionString 1.0" \
             "$PLIST" \
@@ -438,7 +417,19 @@ jobs:
             -c "Print :CFBundleExecutable" \
             "$PLIST"
       # ============================================================
-      # Copy TH06 game data into .app
+      # Copy TH06 game data
+      #
+      # IMPORTANT:
+      # The repository keeps the original names:
+      #
+      # th06e_IN.DAT
+      # th06e_ST.DAT
+      # th06e_TL.DAT
+      # th06e_MD.DAT
+      # th06e_ED.DAT
+      # th06e_CM.DAT
+      #
+      # They are renamed ONLY inside the iOS .app.
       # ============================================================
       - name: Copy TH06 game data
         run: |
@@ -459,15 +450,31 @@ jobs:
           echo ""
           echo "Destination:"
           echo "$APP_PATH"
-          if [ ! -d game ]; then
-            echo "ERROR: game/ directory not found"
-            exit 1
-          fi
-          cp -R \
-            game/. \
-            "$APP_PATH/"
           echo ""
-          echo "Game data copied successfully."
+          echo "Renaming game data for iOS..."
+          cp "game/th06e_IN.DAT" \
+            "$APP_PATH/IN.DAT"
+          cp "game/th06e_ST.DAT" \
+            "$APP_PATH/ST.DAT"
+          cp "game/th06e_TL.DAT" \
+            "$APP_PATH/TL.DAT"
+          cp "game/th06e_MD.DAT" \
+            "$APP_PATH/_MD.DAT"
+          cp "game/th06e_ED.DAT" \
+            "$APP_PATH/_ED.DAT"
+          cp "game/th06e_CM.DAT" \
+            "$APP_PATH/_CM.DAT"
+          echo ""
+          echo "===== DATA COPIED ====="
+          ls -lh \
+            "$APP_PATH/IN.DAT" \
+            "$APP_PATH/ST.DAT" \
+            "$APP_PATH/TL.DAT" \
+            "$APP_PATH/_MD.DAT" \
+            "$APP_PATH/_ED.DAT" \
+            "$APP_PATH/_CM.DAT"
+          echo ""
+          echo "TH06 game data copied successfully."
       # ============================================================
       # Verify game data inside .app
       # ============================================================
@@ -481,13 +488,6 @@ jobs:
           echo "========================================"
           echo "VERIFY GAME DATA IN APP"
           echo "========================================"
-          echo ""
-          echo "Top-level app files:"
-          find "$APP_PATH" \
-            -maxdepth 1 \
-            -type f \
-            -print \
-            | sort
           echo ""
           echo "DAT files in app:"
           find "$APP_PATH" \
@@ -513,9 +513,12 @@ jobs:
               SIZE=$(du -h "$APP_PATH/$FILE" | cut -f1)
               echo "OK: $FILE ($SIZE)"
             else
-              echo "WARNING: $FILE not found in .app"
+              echo "ERROR: $FILE not found in .app"
+              exit 1
             fi
           done
+          echo ""
+          echo "All renamed TH06 DAT files are inside the .app."
           echo ""
           echo "Checking bgm:"
           if [ -d "$APP_PATH/bgm" ]; then
@@ -704,27 +707,56 @@ jobs:
             || true
           echo ""
           echo "Checking IN.DAT..."
-          if grep -q 'Payload/.app/IN.DAT' ipa-list.txt; then
+          if grep -qE 'Payload/.+\.app/IN\.DAT' ipa-list.txt; then
             echo "OK: IN.DAT is inside IPA"
           else
-            echo "WARNING: IN.DAT not found in IPA"
+            echo "ERROR: IN.DAT not found in IPA"
+            exit 1
           fi
           echo ""
           echo "Checking ST.DAT..."
-          if grep -q 'Payload/.app/ST.DAT' ipa-list.txt; then
+          if grep -qE 'Payload/.+\.app/ST\.DAT' ipa-list.txt; then
             echo "OK: ST.DAT is inside IPA"
           else
-            echo "WARNING: ST.DAT not found in IPA"
+            echo "ERROR: ST.DAT not found in IPA"
+            exit 1
           fi
           echo ""
           echo "Checking TL.DAT..."
-          if grep -q 'Payload/.app/TL.DAT' ipa-list.txt; then
+          if grep -qE 'Payload/.+\.app/TL\.DAT' ipa-list.txt; then
             echo "OK: TL.DAT is inside IPA"
           else
-            echo "WARNING: TL.DAT not found in IPA"
+            echo "ERROR: TL.DAT not found in IPA"
+            exit 1
           fi
           echo ""
-          echo "IPA verification completed."
+          echo "Checking _MD.DAT..."
+          if grep -qE 'Payload/.+\.app/_MD\.DAT' ipa-list.txt; then
+            echo "OK: _MD.DAT is inside IPA"
+          else
+            echo "ERROR: _MD.DAT not found in IPA"
+            exit 1
+          fi
+          echo ""
+          echo "Checking _ED.DAT..."
+          if grep -qE 'Payload/.+\.app/_ED\.DAT' ipa-list.txt; then
+            echo "OK: _ED.DAT is inside IPA"
+          else
+            echo "ERROR: _ED.DAT not found in IPA"
+            exit 1
+          fi
+          echo ""
+          echo "Checking _CM.DAT..."
+          if grep -qE 'Payload/.+\.app/_CM\.DAT' ipa-list.txt; then
+            echo "OK: _CM.DAT is inside IPA"
+          else
+            echo "ERROR: _CM.DAT not found in IPA"
+            exit 1
+          fi
+          echo ""
+          echo "========================================"
+          echo "IPA verification completed successfully."
+          echo "========================================"
       # ============================================================
       # Upload IPA
       # ============================================================
