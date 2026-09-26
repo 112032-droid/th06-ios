@@ -1,6 +1,8 @@
 name: Build Touhou TH06 for iOS
 
 on:
+  push:
+
   workflow_dispatch:
 
 jobs:
@@ -291,31 +293,29 @@ jobs:
             echo "INFO: resources/ directory not found"
           fi
 
-          # --------------------------------------------------------
-          # Optional data directory
-          #
-          # Do NOT fail the build if data/ does not exist.
-          # The TH06 PBG3 system may store virtual paths such as:
-          #
-          # data/wav/plst00.wav
-          #
-          # inside the DAT archives.
-          # --------------------------------------------------------
+          echo ""
+          echo "Checking physical data directory..."
 
           if [ -d "data" ]; then
+            echo "data/ directory found"
+            echo ""
+
+            find data -maxdepth 3 -type f | sort | head -200
+
             cp -R data "$APP_PATH/"
+            echo ""
             echo "data/ copied"
 
             if [ -f "$APP_PATH/data/wav/plst00.wav" ]; then
-              echo "OK: data/wav/plst00.wav"
+              echo "OK: physical data/wav/plst00.wav"
               ls -lh "$APP_PATH/data/wav/plst00.wav"
             else
-              echo "INFO: data/wav/plst00.wav not found in physical data/"
+              echo "INFO: physical data/wav/plst00.wav not found"
             fi
           else
             echo "INFO: data/ directory not found"
-            echo "INFO: This is not automatically an error."
-            echo "INFO: data/wav/plst00.wav may be inside a PBG3/DAT archive."
+            echo "INFO: This is NOT automatically an error."
+            echo "INFO: data/wav/plst00.wav may be stored inside a PBG3/DAT archive."
           fi
 
       # ============================================================
@@ -343,6 +343,14 @@ jobs:
             \( -iname "*.dat" \) \
             -print \
             -exec ls -lh {} \;
+
+          echo ""
+          echo "Searching for physical WAV files..."
+
+          find "$APP_PATH" \
+            -type f \
+            \( -iname "*.wav" \) \
+            -print | head -100 || true
 
       # ============================================================
       # Create IPA
@@ -403,7 +411,7 @@ jobs:
           done
 
           echo ""
-          echo "Checking data/wav/plst00.wav..."
+          echo "Checking physical data/wav/plst00.wav..."
 
           if grep -qE \
             'Payload/.+\.app/data/wav/plst00\.wav' \
@@ -411,7 +419,21 @@ jobs:
             echo "OK: physical data/wav/plst00.wav is inside IPA"
           else
             echo "INFO: physical data/wav/plst00.wav is not inside IPA"
-            echo "INFO: This can be normal if the file is stored inside a DAT archive."
+          fi
+
+          echo ""
+          echo "Checking WAV files inside IPA..."
+
+          if grep -qiE \
+            'Payload/.+\.app/.+\.wav' \
+            ipa-list.txt; then
+            echo "WAV files found in IPA:"
+            grep -iE \
+              'Payload/.+\.app/.+\.wav' \
+              ipa-list.txt | head -100
+          else
+            echo "INFO: no physical WAV files found in IPA"
+            echo "INFO: WAV files may be stored inside DAT archives."
           fi
 
           echo ""
