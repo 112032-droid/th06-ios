@@ -5,23 +5,17 @@
 <plist version="1.0">
 <dict>
 
-    <key>CFBundleDevelopmentRegion</key>
-    <string>zh_TW</string>
-
-    <key>CFBundleDisplayName</key>
-    <string>東方紅魔郷</string>
-
     <key>CFBundleExecutable</key>
     <string>th06</string>
 
     <key>CFBundleIdentifier</key>
     <string>com.example.th06</string>
 
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-
     <key>CFBundleName</key>
     <string>Touhou Scarlet Devil</string>
+
+    <key>CFBundleDisplayName</key>
+    <string>東方紅魔郷</string>
 
     <key>CFBundlePackageType</key>
     <string>APPL</string>
