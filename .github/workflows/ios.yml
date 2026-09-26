@@ -177,17 +177,6 @@ jobs:
 
       # ============================================================
       # Create unified SDL2 include directory
-      #
-      # This fixes:
-      #
-      # fatal error:
-      # 'SDL2/SDL_ttf.h' file not found
-      #
-      # Actual SDL_ttf.h:
-      # external/SDL_ttf/SDL_ttf.h
-      #
-      # Target:
-      # include/SDL2/SDL_ttf.h
       # ============================================================
 
       - name: Create unified SDL2 include directory
@@ -258,9 +247,13 @@ jobs:
 
           test -f CMakeLists.txt
           test -f embed_shaders.cmake
+          test -f src/main_ios.mm
+          test -f Info.plist
 
           echo "CMakeLists.txt OK"
           echo "embed_shaders.cmake OK"
+          echo "main_ios.mm OK"
+          echo "Info.plist OK"
 
 
       # ============================================================
@@ -379,10 +372,13 @@ jobs:
 
 
       # ============================================================
-      # Verify ARM64 binary
+      # Fix final iOS Info.plist
+      #
+      # IMPORTANT:
+      # This must happen BEFORE Verify ARM64.
       # ============================================================
 
-      - name: Verify ARM64 iOS binary
+      - name: Fix Info.plist
         run: |
           set -e
 
@@ -396,30 +392,125 @@ jobs:
             exit 1
           fi
 
+          PLIST="$APP_PATH/Info.plist"
+
+          echo "========================================"
+          echo "iOS App Bundle"
+          echo "========================================"
+
           echo "APP:"
           echo "$APP_PATH"
 
-          EXECUTABLE=$(defaults read "$APP_PATH/Info.plist" CFBundleExecutable)
+          echo ""
+          echo "Info.plist:"
+          echo "$PLIST"
+
+          if [ ! -f "$PLIST" ]; then
+            echo "ERROR: Info.plist does not exist"
+            exit 1
+          fi
+
+
+          # --------------------------------------------------------
+          # CFBundleExecutable
+          # --------------------------------------------------------
+
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleExecutable th06" \
+            "$PLIST" \
+            2>/dev/null || \
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleExecutable string th06" \
+            "$PLIST"
+
+
+          # --------------------------------------------------------
+          # CFBundleIdentifier
+          # --------------------------------------------------------
+
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleIdentifier com.example.th06" \
+            "$PLIST" \
+            2>/dev/null || \
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleIdentifier string com.example.th06"
+
+
+          # --------------------------------------------------------
+          # CFBundleDisplayName
+          # --------------------------------------------------------
+
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleDisplayName 東方紅魔郷" \
+            "$PLIST" \
+            2>/dev/null || \
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleDisplayName string 東方紅魔郷" \
+            "$PLIST"
+
+
+          # --------------------------------------------------------
+          # CFBundlePackageType
+          # --------------------------------------------------------
+
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundlePackageType APPL" \
+            "$PLIST" \
+            2>/dev/null || \
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundlePackageType string APPL" \
+            "$PLIST"
+
+
+          # --------------------------------------------------------
+          # LSRequiresIPhoneOS
+          # --------------------------------------------------------
+
+          /usr/libexec/PlistBuddy \
+            -c "Set :LSRequiresIPhoneOS true" \
+            "$PLIST" \
+            2>/dev/null || \
+          /usr/libexec/PlistBuddy \
+            -c "Add :LSRequiresIPhoneOS bool true" \
+            "$PLIST"
+
+
+          # --------------------------------------------------------
+          # Version
+          # --------------------------------------------------------
+
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleShortVersionString 1.0" \
+            "$PLIST" \
+            2>/dev/null || \
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleShortVersionString string 1.0" \
+            "$PLIST"
+
+
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleVersion 1" \
+            "$PLIST" \
+            2>/dev/null || \
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleVersion string 1"
+
 
           echo ""
-          echo "Executable:"
-          echo "$EXECUTABLE"
+          echo "========================================"
+          echo "Final Info.plist"
+          echo "========================================"
 
-          BINARY="$APP_PATH/$EXECUTABLE"
-
-          echo ""
-          echo "===== file ====="
-          file "$BINARY"
+          plutil -p "$PLIST"
 
           echo ""
-          echo "===== Architectures ====="
-          lipo -info "$BINARY"
+          echo "========================================"
+          echo "CFBundleExecutable"
+          echo "========================================"
 
-          echo ""
-          echo "===== SDK ====="
-          otool -l "$BINARY" \
-            | grep -A4 LC_BUILD_VERSION \
-            | head -20 || true
+          /usr/libexec/PlistBuddy \
+            -c "Print :CFBundleExecutable" \
+            "$PLIST"
 
 
       # ============================================================
@@ -444,20 +535,24 @@ jobs:
           echo "$APP_PATH"
 
           if [ -d resources ]; then
+
             echo ""
             echo "===== Copy resources ====="
 
             cp -R resources/. "$APP_PATH/"
+
           else
+
             echo "No resources directory found"
+
           fi
 
 
       # ============================================================
-      # Create Info.plist
+      # Verify ARM64 binary
       # ============================================================
 
-      - name: Create Info.plist
+      - name: Verify ARM64 iOS binary
         run: |
           set -e
 
@@ -471,24 +566,100 @@ jobs:
             exit 1
           fi
 
-          /usr/libexec/PlistBuddy \
-            -c "Set :CFBundleDisplayName 東方紅魔郷" \
-            "$APP_PATH/Info.plist" || true
+          echo "APP:"
+          echo "$APP_PATH"
 
-          /usr/libexec/PlistBuddy \
-            -c "Set :CFBundleIdentifier com.example.th06" \
-            "$APP_PATH/Info.plist" || true
 
-          /usr/libexec/PlistBuddy \
-            -c "Set :CFBundlePackageType APPL" \
-            "$APP_PATH/Info.plist" || true
+          # --------------------------------------------------------
+          # Read executable from Info.plist
+          # --------------------------------------------------------
 
-          /usr/libexec/PlistBuddy \
-            -c "Set :LSRequiresIPhoneOS true" \
-            "$APP_PATH/Info.plist" || true
+          EXECUTABLE=$(
+            /usr/libexec/PlistBuddy \
+              -c "Print :CFBundleExecutable" \
+              "$APP_PATH/Info.plist"
+          )
 
-          echo "Info.plist:"
-          plutil -p "$APP_PATH/Info.plist"
+          echo ""
+          echo "Executable:"
+          echo "$EXECUTABLE"
+
+
+          # --------------------------------------------------------
+          # Check executable
+          # --------------------------------------------------------
+
+          BINARY="$APP_PATH/$EXECUTABLE"
+
+          if [ ! -f "$BINARY" ]; then
+            echo "ERROR: Executable not found:"
+            echo "$BINARY"
+
+            echo ""
+            echo "===== App contents ====="
+            find "$APP_PATH" -maxdepth 2 -print
+
+            exit 1
+          fi
+
+
+          echo ""
+          echo "===== file ====="
+
+          file "$BINARY"
+
+
+          echo ""
+          echo "===== Architectures ====="
+
+          lipo -info "$BINARY"
+
+
+          echo ""
+          echo "===== SDK ====="
+
+          otool -l "$BINARY" \
+            | grep -A4 LC_BUILD_VERSION \
+            | head -20 || true
+
+
+      # ============================================================
+      # Verify Info.plist
+      # ============================================================
+
+      - name: Verify Info.plist
+        run: |
+          set -e
+
+          APP_PATH=$(find build \
+            -type d \
+            -name "*.app" \
+            | head -1)
+
+          PLIST="$APP_PATH/Info.plist"
+
+          echo "===== Info.plist verification ====="
+
+          echo ""
+          echo "CFBundleExecutable:"
+          /usr/libexec/PlistBuddy \
+            -c "Print :CFBundleExecutable" \
+            "$PLIST"
+
+          echo ""
+          echo "CFBundleIdentifier:"
+          /usr/libexec/PlistBuddy \
+            -c "Print :CFBundleIdentifier" \
+            "$PLIST"
+
+          echo ""
+          echo "CFBundlePackageType:"
+          /usr/libexec/PlistBuddy \
+            -c "Print :CFBundlePackageType" \
+            "$PLIST"
+
+          echo ""
+          echo "Info.plist OK"
 
 
       # ============================================================
@@ -537,6 +708,7 @@ jobs:
           test -f th06.ipa
 
           echo "===== IPA information ====="
+
           unzip -l th06.ipa
 
           echo ""
@@ -549,6 +721,7 @@ jobs:
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
+
         with:
           name: th06-ios-ipa
           path: th06.ipa
