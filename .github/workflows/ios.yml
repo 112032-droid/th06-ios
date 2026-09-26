@@ -36,6 +36,49 @@ jobs:
             https://github.com/libsdl-org/SDL_ttf.git \
             external/SDL_ttf
 
+      - name: Check SDL2 and SDL_ttf headers
+        run: |
+          set -e
+
+          echo "========================================"
+          echo "SDL headers"
+          echo "========================================"
+
+          find external/SDL/include \
+            -maxdepth 3 \
+            -type f \
+            -name "*.h" \
+            -print | sort
+
+          echo "========================================"
+          echo "SDL_image headers"
+          echo "========================================"
+
+          find external/SDL_image/include \
+            -maxdepth 3 \
+            -type f \
+            -name "*.h" \
+            -print | sort
+
+          echo "========================================"
+          echo "SDL_ttf headers"
+          echo "========================================"
+
+          find external/SDL_ttf/include \
+            -maxdepth 3 \
+            -type f \
+            -name "*.h" \
+            -print | sort
+
+          echo "========================================"
+          echo "Searching SDL_ttf.h everywhere"
+          echo "========================================"
+
+          find external/SDL_ttf \
+            -type f \
+            -name "SDL_ttf.h" \
+            -print
+
       - name: Download SDL_image dependencies
         run: |
           set -e
@@ -48,7 +91,10 @@ jobs:
           cd ../..
 
           echo "Checking SDL_image dependencies..."
-          find external/SDL_image/external -maxdepth 3 -type d -print || true
+          find external/SDL_image/external \
+            -maxdepth 3 \
+            -type d \
+            -print || true
 
       - name: Check libtiff
         run: |
@@ -84,35 +130,89 @@ jobs:
       - name: Create unified SDL2 include directory
         run: |
           set -e
+
+          rm -rf include
           mkdir -p include/SDL2
 
-          # 收集核心 SDL 標頭檔
+          echo "========================================"
+          echo "Copy SDL2 headers"
+          echo "========================================"
+
           if [ -d external/SDL/include ]; then
-            cp -f external/SDL/include/*.h include/SDL2/ || true
+            cp -f external/SDL/include/*.h include/SDL2/
+          else
+            echo "ERROR: SDL include directory not found"
+            exit 1
           fi
 
-          # 收集 SDL_image 標頭檔
+          echo "========================================"
+          echo "Copy SDL_image header"
+          echo "========================================"
+
           if [ -f external/SDL_image/include/SDL_image.h ]; then
-            cp -f external/SDL_image/include/SDL_image.h include/SDL2/ || true
+            cp -f external/SDL_image/include/SDL_image.h include/SDL2/
+          else
+            echo "WARNING: SDL_image.h not found"
           fi
 
-          # 收集 SDL_ttf 標頭檔
-          if [ -f external/SDL_ttf/include/SDL_ttf.h ]; then
-            cp -f external/SDL_ttf/include/SDL_ttf.h include/SDL2/ || true
+          echo "========================================"
+          echo "Copy SDL_ttf header"
+          echo "========================================"
+
+          TTF_HEADER="$(find external/SDL_ttf/include \
+            -type f \
+            -name "SDL_ttf.h" \
+            | head -n 1 || true)"
+
+          if [ -z "$TTF_HEADER" ]; then
+            echo "ERROR: SDL_ttf.h not found"
+
+            echo "SDL_ttf directory:"
+            find external/SDL_ttf \
+              -maxdepth 5 \
+              -type f \
+              -print | head -300
+
+            exit 1
           fi
 
-          echo "===== Unified SDL2 Headers ====="
+          echo "Found:"
+          echo "$TTF_HEADER"
+
+          cp -f "$TTF_HEADER" include/SDL2/SDL_ttf.h
+
+          echo "========================================"
+          echo "Unified SDL2 Headers"
+          echo "========================================"
+
           ls -la include/SDL2
+
+          echo "========================================"
+          echo "Checking required header"
+          echo "========================================"
+
+          test -f include/SDL2/SDL.h
+          test -f include/SDL2/SDL_ttf.h
+
+          echo "SDL2/SDL.h       OK"
+          echo "SDL2/SDL_ttf.h   OK"
 
       - name: Check FreeType
         run: |
           set -e
 
-          if find external/SDL_ttf -type f -name "ft2build.h" | grep -q .; then
+          if find external/SDL_ttf \
+            -type f \
+            -name "ft2build.h" \
+            | grep -q .; then
+
             echo "FreeType OK"
+
           else
+
             echo "ERROR: FreeType not found"
             exit 1
+
           fi
 
       - name: Check project
@@ -123,7 +223,10 @@ jobs:
           ls -la
 
           echo "===== src ====="
-          find src -maxdepth 4 -type f | head -200
+          find src \
+            -maxdepth 4 \
+            -type f \
+            | head -200
 
       - name: Configure iOS ARM64
         run: |
@@ -156,6 +259,27 @@ jobs:
             -DSDL2TTF_SAMPLES=OFF \
             -DSDL2TTF_TESTS=OFF
 
+      - name: Verify CMake SDL_ttf configuration
+        run: |
+          set -e
+
+          echo "========================================"
+          echo "Searching generated build files"
+          echo "========================================"
+
+          find build \
+            -type f \
+            \( -name "*.cmake" -o -name "*.xcodeproj" \) \
+            -print | head -100
+
+          echo "========================================"
+          echo "Checking SDL_ttf.h"
+          echo "========================================"
+
+          test -f include/SDL2/SDL_ttf.h
+
+          echo "SDL2/SDL_ttf.h is available."
+
       - name: Build iOS ARM64
         run: |
           set -e
@@ -170,9 +294,15 @@ jobs:
 
           echo "Searching for app..."
 
-          find build -type d -name "*.app" -print
+          find build \
+            -type d \
+            -name "*.app" \
+            -print
 
-          APP="$(find build -type d -name 'th06.app' | head -n 1)"
+          APP="$(find build \
+            -type d \
+            -name 'th06.app' \
+            | head -n 1)"
 
           if [ -z "$APP" ]; then
             echo "ERROR: th06.app not found"
@@ -185,7 +315,11 @@ jobs:
         run: |
           set -e
 
-          APP="$(find build -type d -name 'th06.app' | head -n 1)"
+          APP="$(find build \
+            -type d \
+            -name 'th06.app' \
+            | head -n 1)"
+
           BIN="$APP/th06"
 
           if [ ! -f "$BIN" ]; then
@@ -200,7 +334,8 @@ jobs:
           lipo -info "$BIN"
 
           echo "===== platform ====="
-          otool -l "$BIN" | grep -A8 LC_BUILD_VERSION || true
+          otool -l "$BIN" | \
+            grep -A8 LC_BUILD_VERSION || true
 
           echo "Checking ARM64..."
 
@@ -210,17 +345,26 @@ jobs:
 
           echo "Checking iOS platform..."
 
-          if otool -l "$BIN" | grep -A8 LC_BUILD_VERSION | grep -q PLATFORM_IOS; then
+          if otool -l "$BIN" | \
+            grep -A8 LC_BUILD_VERSION | \
+            grep -q PLATFORM_IOS; then
+
             echo "iOS platform OK"
+
           else
+
             echo "WARNING: PLATFORM_IOS was not detected"
+
           fi
 
       - name: Package resources
         run: |
           set -e
 
-          APP="$(find build -type d -name 'th06.app' | head -n 1)"
+          APP="$(find build \
+            -type d \
+            -name 'th06.app' \
+            | head -n 1)"
 
           if [ -d resources ]; then
             echo "Copying resources..."
@@ -230,28 +374,62 @@ jobs:
           fi
 
           echo "===== APP CONTENT ====="
-          find "$APP" -maxdepth 4 -print
+          find "$APP" \
+            -maxdepth 4 \
+            -print
 
       - name: Create Info.plist
         run: |
           set -e
 
-          APP="$(find build -type d -name 'th06.app' | head -n 1)"
+          APP="$(find build \
+            -type d \
+            -name 'th06.app' \
+            | head -n 1)"
 
           PLIST="$APP/Info.plist"
 
           rm -f "$PLIST"
 
-          /usr/libexec/PlistBuddy -c "Add :CFBundleExecutable string th06" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string com.example.th06" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :CFBundleName string th06" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string 東方紅魔郷" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :CFBundlePackageType string APPL" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string 1.0" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string 1" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :LSRequiresIPhoneOS bool true" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily array" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily:0 integer 1" "$PLIST"
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleExecutable string th06" \
+            "$PLIST"
+
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleIdentifier string com.example.th06" \
+            "$PLIST"
+
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleName string th06" \
+            "$PLIST"
+
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleDisplayName string 東方紅魔郷" \
+            "$PLIST"
+
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundlePackageType string APPL" \
+            "$PLIST"
+
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleShortVersionString string 1.0" \
+            "$PLIST"
+
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleVersion string 1" \
+            "$PLIST"
+
+          /usr/libexec/PlistBuddy \
+            -c "Add :LSRequiresIPhoneOS bool true" \
+            "$PLIST"
+
+          /usr/libexec/PlistBuddy \
+            -c "Add :UIDeviceFamily array" \
+            "$PLIST"
+
+          /usr/libexec/PlistBuddy \
+            -c "Add :UIDeviceFamily:0 integer 1" \
+            "$PLIST"
 
           echo "===== Info.plist ====="
           plutil -p "$PLIST"
@@ -260,7 +438,10 @@ jobs:
         run: |
           set -e
 
-          APP="$(find build -type d -name 'th06.app' | head -n 1)"
+          APP="$(find build \
+            -type d \
+            -name 'th06.app' \
+            | head -n 1)"
 
           if [ -z "$APP" ]; then
             echo "ERROR: th06.app not found"
@@ -275,7 +456,9 @@ jobs:
           cp -R "$APP" Payload/th06.app
 
           echo "===== Payload ====="
-          find Payload -maxdepth 4 -print
+          find Payload \
+            -maxdepth 4 \
+            -print
 
           cd Payload
 
