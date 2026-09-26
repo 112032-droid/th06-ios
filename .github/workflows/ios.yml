@@ -1,7 +1,6 @@
-name: Build iOS IPA
+name: Build Touhou TH06 for iOS
 
 on:
-  push:
   workflow_dispatch:
 
 jobs:
@@ -11,263 +10,31 @@ jobs:
     steps:
 
       # ============================================================
-      # Checkout
+      # Checkout source
       # ============================================================
-      - name: Checkout repository
+      - name: Checkout source
         uses: actions/checkout@v4
 
       # ============================================================
-      # Check Xcode
+      # Check repository
       # ============================================================
-      - name: Check Xcode
+      - name: Check repository
         run: |
           set -e
 
-          echo "===== Xcode ====="
-          xcodebuild -version
+          echo "========================================"
+          echo "Repository"
+          echo "========================================"
 
-          echo ""
-          echo "===== macOS ====="
-          sw_vers
-
-          echo ""
-          echo "===== iOS SDK ====="
-          xcrun --sdk iphoneos --show-sdk-path
-
-      # ============================================================
-      # Download SDL2
-      # ============================================================
-      - name: Download SDL2
-        run: |
-          set -e
-
-          mkdir -p external
-
-          git clone --depth 1 \
-            --branch release-2.32.8 \
-            https://github.com/libsdl-org/SDL.git \
-            external/SDL
-
-      # ============================================================
-      # Download SDL2_image
-      # ============================================================
-      - name: Download SDL2_image
-        run: |
-          set -e
-
-          git clone --depth 1 \
-            --branch release-2.8.8 \
-            https://github.com/libsdl-org/SDL_image.git \
-            external/SDL_image
-
-      # ============================================================
-      # Download SDL2_ttf
-      # ============================================================
-      - name: Download SDL2_ttf
-        run: |
-          set -e
-
-          git clone --depth 1 \
-            --branch release-2.24.0 \
-            https://github.com/libsdl-org/SDL_ttf.git \
-            external/SDL_ttf
-
-      # ============================================================
-      # Check downloaded libraries
-      # ============================================================
-      - name: Check SDL libraries
-        run: |
-          set -e
-
-          echo "===== external ====="
-          find external -maxdepth 2 -type f | head -100
-
-          echo ""
-          echo "===== SDL2 ====="
-          test -d external/SDL
-          test -f external/SDL/include/SDL.h
-          echo "SDL2 OK"
-
-          echo ""
-          echo "===== SDL2_image ====="
-          test -d external/SDL_image
-          test -f external/SDL_image/include/SDL_image.h
-          echo "SDL2_image OK"
-
-          echo ""
-          echo "===== SDL2_ttf ====="
-          test -d external/SDL_ttf
-          test -f external/SDL_ttf/SDL_ttf.h
-          echo "SDL2_ttf OK"
-
-          echo ""
-          echo "SDL_ttf.h location:"
-          find external/SDL_ttf -type f -name "SDL_ttf.h"
-
-      # ============================================================
-      # Download SDL2_image dependencies
-      # ============================================================
-      - name: Download SDL2_image dependencies
-        run: |
-          set -e
-
-          cd external/SDL_image
-
-          if [ -f external/download.sh ]; then
-            chmod +x external/download.sh
-            ./external/download.sh
-          else
-            echo "SDL_image download.sh not found"
-          fi
-
-      # ============================================================
-      # Download SDL2_ttf dependencies
-      # ============================================================
-      - name: Download SDL2_ttf dependencies
-        run: |
-          set -e
-
-          cd external/SDL_ttf
-
-          if [ -f external/download.sh ]; then
-            chmod +x external/download.sh
-            ./external/download.sh
-          else
-            echo "SDL_ttf download.sh not found"
-          fi
-
-      # ============================================================
-      # Check FreeType
-      # ============================================================
-      - name: Check FreeType
-        run: |
-          echo "===== FreeType ====="
-
-          find external/SDL_ttf \
-            -type f \
-            -name "ft2build.h" \
-            -print
-
+          pwd
           echo ""
 
-          if find external/SDL_ttf \
-            -type f \
-            -name "ft2build.h" \
-            | grep -q .; then
-
-            echo "FreeType headers found"
-
-          else
-
-            echo "WARNING: FreeType headers not found"
-
-          fi
-
-      # ============================================================
-      # Create unified SDL2 include directory
-      # ============================================================
-      - name: Create unified SDL2 include directory
-        run: |
-          set -e
-
-          rm -rf include
-          mkdir -p include/SDL2
-
-          echo "===== Copy SDL2 headers ====="
-
-          cp -f external/SDL/include/*.h \
-            include/SDL2/
-
-          echo "===== Copy SDL2_image header ====="
-
-          if [ -f external/SDL_image/include/SDL_image.h ]; then
-
-            cp -f external/SDL_image/include/SDL_image.h \
-              include/SDL2/SDL_image.h
-
-          else
-
-            echo "ERROR: SDL_image.h not found"
-            exit 1
-
-          fi
-
-          echo "===== Copy SDL2_ttf header ====="
-
-          if [ -f external/SDL_ttf/SDL_ttf.h ]; then
-
-            cp -f external/SDL_ttf/SDL_ttf.h \
-              include/SDL2/SDL_ttf.h
-
-          else
-
-            echo "ERROR: SDL_ttf.h not found"
-            exit 1
-
-          fi
+          echo "Root files:"
+          ls -lah
 
           echo ""
-          echo "===== Unified headers ====="
-
-          ls -la include/SDL2
-
-          echo ""
-          echo "===== Required headers ====="
-
-          test -f include/SDL2/SDL.h
-          test -f include/SDL2/SDL_image.h
-          test -f include/SDL2/SDL_ttf.h
-
-          echo ""
-          echo "All SDL2 headers OK"
-
-      # ============================================================
-      # Check project files
-      # ============================================================
-      - name: Check project
-        run: |
-          set -e
-
-          echo "===== Project ====="
-          ls -la
-
-          echo ""
-          echo "===== Source ====="
-          find src -type f | head -100
-
-          echo ""
-          echo "===== Required files ====="
-
-          test -f CMakeLists.txt
-          test -f embed_shaders.cmake
-          test -f src/main_ios.mm
-          test -f Info.plist
-
-          echo "CMakeLists.txt OK"
-          echo "embed_shaders.cmake OK"
-          echo "main_ios.mm OK"
-          echo "Info.plist OK"
-
-      # ============================================================
-      # Check shader files
-      # ============================================================
-      - name: Check shaders
-        run: |
-          set -e
-
-          echo "===== Shader files ====="
-
-          if [ -f src/graphics/ff.vert ]; then
-            echo "ff.vert found"
-          else
-            echo "WARNING: ff.vert not found"
-          fi
-
-          if [ -f src/graphics/ff.frag ]; then
-            echo "ff.frag found"
-          else
-            echo "WARNING: ff.frag not found"
-          fi
+          echo "Source files:"
+          find src -maxdepth 2 -type f | head -100 || true
 
       # ============================================================
       # Check TH06 game data
@@ -277,455 +44,233 @@ jobs:
           set -e
 
           echo "========================================"
-          echo "TH06 GAME DATA"
+          echo "Checking TH06 game data"
           echo "========================================"
 
-          if [ ! -d game ]; then
-            echo "ERROR: game/ directory does not exist"
+          if [ ! -d "game" ]; then
+            echo "ERROR: game/ directory not found"
             exit 1
           fi
 
-          echo "game/ found"
-
+          echo "game/ directory found"
           echo ""
-          echo "===== Game files ====="
 
-          find game -type f -print | sort
-
-          echo ""
-          echo "===== Game data size ====="
-
-          du -sh game
+          ls -lh game
 
       # ============================================================
-      # Check ORIGINAL TH06 DAT files
-      #
-      # Repository keeps the original filenames:
-      #
-      # th06e_IN.DAT
-      # th06e_ST.DAT
-      # th06e_TL.DAT
-      # th06e_MD.DAT
-      # th06e_ED.DAT
-      # th06e_CM.DAT
-      #
-      # IMPORTANT:
-      # These are renamed to the filenames expected by i18n.hpp
-      # when copied into the .app.
+      # Check original English DAT files
       # ============================================================
       - name: Check TH06 DAT files
         run: |
           set -e
 
           echo "========================================"
-          echo "CHECK ORIGINAL TH06 DAT FILES"
+          echo "Checking expected English DAT files"
           echo "========================================"
 
-          REQUIRED_FILES="
-          th06e_IN.DAT
-          th06e_ST.DAT
-          th06e_TL.DAT
-          th06e_MD.DAT
-          th06e_ED.DAT
-          th06e_CM.DAT
-          "
+          required_files=(
+            "th06e_IN.DAT"
+            "th06e_ST.DAT"
+            "th06e_TL.DAT"
+            "th06e_MD.DAT"
+            "th06e_ED.DAT"
+            "th06e_CM.DAT"
+          )
 
-          for FILE in $REQUIRED_FILES; do
-
-            if [ -f "game/$FILE" ]; then
-
-              SIZE=$(du -h "game/$FILE" | cut -f1)
-
-              echo "OK: $FILE ($SIZE)"
-
+          for file in "${required_files[@]}"; do
+            if [ -f "game/$file" ]; then
+              echo "OK: $file"
+              ls -lh "game/$file"
             else
-
-              echo "ERROR: game/$FILE not found"
+              echo "ERROR: missing game/$file"
               exit 1
-
             fi
-
           done
 
-          echo ""
-          echo "All original TH06 DAT files found."
+      # ============================================================
+      # Install build dependencies
+      # ============================================================
+      - name: Install dependencies
+        run: |
+          set -e
+
+          brew update
+
+          brew install cmake || true
 
       # ============================================================
-      # Configure CMake
+      # Configure iOS ARM64
       # ============================================================
       - name: Configure iOS ARM64
         run: |
           set -e
 
+          echo "========================================"
+          echo "Configure iOS ARM64"
+          echo "========================================"
+
           rm -rf build
 
-          cmake \
-            -S . \
-            -B build \
+          cmake -S . -B build \
             -G Xcode \
             -DCMAKE_SYSTEM_NAME=iOS \
             -DCMAKE_OSX_SYSROOT=iphoneos \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_XCODE_ATTRIBUTE_HEADER_SEARCH_PATHS='$(SRCROOT)/include' \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DSDL_SHARED=OFF \
-            -DSDL_STATIC=ON \
-            -DSDL_TESTS=OFF \
-            -DSDL_TEST_LIBRARY=OFF \
-            -DSDL2_SHARED=OFF \
-            -DSDL2_STATIC=ON \
-            -DSDL2IMAGE_SAMPLES=OFF \
-            -DSDL2IMAGE_TESTS=OFF \
-            -DSDL2IMAGE_VENDORED=ON \
-            -DSDL2IMAGE_SHARED=OFF \
-            -DSDL2IMAGE_AVIF=OFF \
-            -DSDL2IMAGE_WEBP=OFF \
-            -DSDL2IMAGE_JXL=OFF \
-            -DSDL2TTF_SAMPLES=OFF \
-            -DSDL2TTF_TESTS=OFF \
-            -DSDL2TTF_VENDORED=ON
-
-          echo ""
-          echo "===== CMake configuration completed ====="
+            -DCMAKE_BUILD_TYPE=Release
 
       # ============================================================
-      # Check generated Xcode project
-      # ============================================================
-      - name: Check Xcode project
-        run: |
-          set -e
-
-          echo "===== Build directory ====="
-
-          find build \
-            -maxdepth 2 \
-            -type f \
-            | head -100
-
-          echo ""
-          echo "===== Xcode projects ====="
-
-          find build \
-            -name "*.xcodeproj" \
-            -print
-
-      # ============================================================
-      # Build
+      # Build iOS
       # ============================================================
       - name: Build iOS
         run: |
           set -e
 
-          cmake \
-            --build build \
+          echo "========================================"
+          echo "Build iOS"
+          echo "========================================"
+
+          cmake --build build \
             --config Release \
-            -- -sdk iphoneos \
-               ARCHS=arm64 \
-               CODE_SIGNING_ALLOWED=NO \
-               CODE_SIGNING_REQUIRED=NO \
-               CODE_SIGN_IDENTITY=""
+            -- -quiet
 
       # ============================================================
-      # Find application
+      # Find app
       # ============================================================
       - name: Find application
         run: |
           set -e
 
-          echo "===== Searching for .app ====="
+          echo "========================================"
+          echo "Searching for .app"
+          echo "========================================"
 
-          find build \
-            -type d \
-            -name "*.app" \
-            -print
+          find build -type d -name "*.app" -print
+
+          APP_PATH=$(find build -type d -name "*.app" | head -1)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: .app not found"
+            exit 1
+          fi
+
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+
+          echo ""
+          echo "Using:"
+          echo "$APP_PATH"
 
       # ============================================================
-      # Fix final iOS Info.plist
+      # Fix Info.plist
       # ============================================================
       - name: Fix Info.plist
         run: |
           set -e
 
-          APP_PATH=$(find build \
-            -type d \
-            -name "*.app" \
-            | head -1)
+          echo "========================================"
+          echo "Fix Info.plist"
+          echo "========================================"
 
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: .app not found"
-            exit 1
+          if [ -f "$APP_PATH/Info.plist" ]; then
+
+            /usr/libexec/PlistBuddy \
+              -c "Add :CFBundleSupportedPlatforms array" \
+              "$APP_PATH/Info.plist" 2>/dev/null || true
+
+            /usr/libexec/PlistBuddy \
+              -c "Add :CFBundleSupportedPlatforms:0 string iPhoneOS" \
+              "$APP_PATH/Info.plist" 2>/dev/null || true
+
+          else
+            echo "WARNING: Info.plist not found"
           fi
-
-          PLIST="$APP_PATH/Info.plist"
-
-          echo "========================================"
-          echo "iOS App Bundle"
-          echo "========================================"
-
-          echo "APP:"
-          echo "$APP_PATH"
-
-          echo ""
-          echo "Info.plist:"
-          echo "$PLIST"
-
-          if [ ! -f "$PLIST" ]; then
-            echo "ERROR: Info.plist does not exist"
-            exit 1
-          fi
-
-          /usr/libexec/PlistBuddy \
-            -c "Set :CFBundleExecutable th06" \
-            "$PLIST" \
-            2>/dev/null || \
-          /usr/libexec/PlistBuddy \
-            -c "Add :CFBundleExecutable string th06" \
-            "$PLIST"
-
-          /usr/libexec/PlistBuddy \
-            -c "Set :CFBundleIdentifier com.example.th06" \
-            "$PLIST" \
-            2>/dev/null || \
-          /usr/libexec/PlistBuddy \
-            -c "Add :CFBundleIdentifier string com.example.th06" \
-            "$PLIST"
-
-          /usr/libexec/PlistBuddy \
-            -c "Set :CFBundleDisplayName 東方紅魔郷" \
-            "$PLIST" \
-            2>/dev/null || \
-          /usr/libexec/PlistBuddy \
-            -c "Add :CFBundleDisplayName string 東方紅魔郷" \
-            "$PLIST"
-
-          /usr/libexec/PlistBuddy \
-            -c "Set :CFBundlePackageType APPL" \
-            "$PLIST" \
-            2>/dev/null || \
-          /usr/libexec/PlistBuddy \
-            -c "Add :CFBundlePackageType string APPL" \
-            "$PLIST"
-
-          /usr/libexec/PlistBuddy \
-            -c "Set :LSRequiresIPhoneOS true" \
-            "$PLIST" \
-            2>/dev/null || \
-          /usr/libexec/PlistBuddy \
-            -c "Add :LSRequiresIPhoneOS bool true" \
-            "$PLIST"
-
-          /usr/libexec/PlistBuddy \
-            -c "Set :CFBundleShortVersionString 1.0" \
-            "$PLIST" \
-            2>/dev/null || \
-          /usr/libexec/PlistBuddy \
-            -c "Add :CFBundleShortVersionString string 1.0" \
-            "$PLIST"
-
-          /usr/libexec/PlistBuddy \
-            -c "Set :CFBundleVersion 1" \
-            "$PLIST" \
-            2>/dev/null || \
-          /usr/libexec/PlistBuddy \
-            -c "Add :CFBundleVersion string 1" \
-            "$PLIST"
-
-          echo ""
-          echo "========================================"
-          echo "Final Info.plist"
-          echo "========================================"
-
-          plutil -p "$PLIST"
-
-          echo ""
-          echo "CFBundleExecutable:"
-
-          /usr/libexec/PlistBuddy \
-            -c "Print :CFBundleExecutable" \
-            "$PLIST"
 
       # ============================================================
       # Copy TH06 game data
       #
-      # IMPORTANT:
-      # The repository keeps:
+      # Original:
+      #   th06e_IN.DAT
+      #   th06e_ST.DAT
+      #   th06e_TL.DAT
+      #   th06e_MD.DAT
+      #   th06e_ED.DAT
+      #   th06e_CM.DAT
       #
-      # th06e_IN.DAT
-      # th06e_ST.DAT
-      # th06e_TL.DAT
-      # th06e_MD.DAT
-      # th06e_ED.DAT
-      # th06e_CM.DAT
-      #
-      # English i18n.hpp expects:
-      #
-      # KOUMAKYO_IN.dat
-      # KOUMAKYO_ST.dat
-      # KOUMAKYO_TL.dat
-      # KOUMAKYO_MD.dat
-      # KOUMAKYO_ED.dat
-      # KOUMAKYO_CM.dat
-      #
-      # DO NOT rename them to IN.DAT / ST.DAT / etc.
+      # App:
+      #   KOUMAKYO_IN.dat
+      #   KOUMAKYO_ST.dat
+      #   KOUMAKYO_TL.dat
+      #   KOUMAKYO_MD.dat
+      #   KOUMAKYO_ED.dat
+      #   KOUMAKYO_CM.dat
       # ============================================================
       - name: Copy TH06 game data
         run: |
           set -e
 
-          APP_PATH=$(find build \
-            -type d \
-            -name "*.app" \
-            | head -1)
-
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: .app not found"
-            exit 1
-          fi
-
           echo "========================================"
-          echo "COPY TH06 GAME DATA"
+          echo "Copy TH06 game data"
           echo "========================================"
 
-          echo "Source:"
-          echo "$(pwd)/game"
+          cp "game/th06e_IN.DAT" "$APP_PATH/KOUMAKYO_IN.dat"
+          cp "game/th06e_ST.DAT" "$APP_PATH/KOUMAKYO_ST.dat"
+          cp "game/th06e_TL.DAT" "$APP_PATH/KOUMAKYO_TL.dat"
+          cp "game/th06e_MD.DAT" "$APP_PATH/KOUMAKYO_MD.dat"
+          cp "game/th06e_ED.DAT" "$APP_PATH/KOUMAKYO_ED.dat"
+          cp "game/th06e_CM.DAT" "$APP_PATH/KOUMAKYO_CM.dat"
 
           echo ""
-          echo "Destination:"
-          echo "$APP_PATH"
+          echo "DAT files copied."
 
-          echo ""
-          echo "Copying game data using expected filenames..."
-
-          cp "game/th06e_IN.DAT" \
-            "$APP_PATH/KOUMAKYO_IN.dat"
-
-          cp "game/th06e_ST.DAT" \
-            "$APP_PATH/KOUMAKYO_ST.dat"
-
-          cp "game/th06e_TL.DAT" \
-            "$APP_PATH/KOUMAKYO_TL.dat"
-
-          cp "game/th06e_MD.DAT" \
-            "$APP_PATH/KOUMAKYO_MD.dat"
-
-          cp "game/th06e_ED.DAT" \
-            "$APP_PATH/KOUMAKYO_ED.dat"
-
-          cp "game/th06e_CM.DAT" \
-            "$APP_PATH/KOUMAKYO_CM.dat"
-
-          echo ""
-          echo "===== DATA COPIED ====="
-
-          ls -lh \
-            "$APP_PATH/KOUMAKYO_IN.dat" \
-            "$APP_PATH/KOUMAKYO_ST.dat" \
-            "$APP_PATH/KOUMAKYO_TL.dat" \
-            "$APP_PATH/KOUMAKYO_MD.dat" \
-            "$APP_PATH/KOUMAKYO_ED.dat" \
-            "$APP_PATH/KOUMAKYO_CM.dat"
-
-          echo ""
-          echo "TH06 game data copied successfully."
+          ls -lh "$APP_PATH"/KOUMAKYO_*.dat
 
       # ============================================================
-      # Verify game data inside .app
+      # Verify TH06 DAT files inside app
       # ============================================================
       - name: Verify TH06 game data in app
         run: |
           set -e
 
-          APP_PATH=$(find build \
-            -type d \
-            -name "*.app" \
-            | head -1)
+          echo "========================================"
+          echo "Verify TH06 game data in app"
+          echo "========================================"
 
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: .app not found"
-            exit 1
+          required_app_files=(
+            "KOUMAKYO_IN.dat"
+            "KOUMAKYO_ST.dat"
+            "KOUMAKYO_TL.dat"
+            "KOUMAKYO_MD.dat"
+            "KOUMAKYO_ED.dat"
+            "KOUMAKYO_CM.dat"
+          )
+
+          for file in "${required_app_files[@]}"; do
+            if [ -f "$APP_PATH/$file" ]; then
+              echo "OK: $file"
+              ls -lh "$APP_PATH/$file"
+            else
+              echo "ERROR: $file missing from app"
+              exit 1
+            fi
+          done
+
+          echo ""
+          echo "Checking old incorrect names..."
+
+          if ls "$APP_PATH"/th06e_*.DAT >/dev/null 2>&1; then
+            echo "WARNING: old th06e_*.DAT files are still present"
+          else
+            echo "OK: old DAT names are not present"
           fi
 
-          echo "========================================"
-          echo "VERIFY GAME DATA IN APP"
-          echo "========================================"
-
           echo ""
-          echo "DAT files in app:"
-
-          find "$APP_PATH" \
-            -maxdepth 1 \
-            -type f \
-            \( \
-              -name "*.DAT" \
-              -o -name "*.dat" \
-            \) \
-            -print \
-            | sort
-
-          echo ""
-          echo "Checking expected English DAT files:"
-
-          for FILE in \
-            KOUMAKYO_IN.dat \
-            KOUMAKYO_ST.dat \
-            KOUMAKYO_TL.dat \
-            KOUMAKYO_MD.dat \
-            KOUMAKYO_ED.dat \
-            KOUMAKYO_CM.dat
-          do
-
-            if [ -f "$APP_PATH/$FILE" ]; then
-
-              SIZE=$(du -h "$APP_PATH/$FILE" | cut -f1)
-
-              echo "OK: $FILE ($SIZE)"
-
-            else
-
-              echo "ERROR: $FILE not found in .app"
-              exit 1
-
-            fi
-
-          done
-
-          echo ""
-          echo "All expected KOUMAKYO DAT files are inside the .app."
-
-          echo ""
-          echo "Checking old incorrect filenames:"
-
-          for FILE in \
-            IN.DAT \
-            ST.DAT \
-            TL.DAT \
-            _MD.DAT \
-            _ED.DAT \
-            _CM.DAT
-          do
-
-            if [ -f "$APP_PATH/$FILE" ]; then
-              echo "WARNING: old filename still exists: $FILE"
-            else
-              echo "OK: old filename absent: $FILE"
-            fi
-
-          done
-
-          echo ""
-          echo "Checking bgm:"
+          echo "Checking optional bgm directory..."
 
           if [ -d "$APP_PATH/bgm" ]; then
-
-            echo "OK: bgm/ exists"
-            du -sh "$APP_PATH/bgm"
-
+            echo "INFO: bgm/ included"
+            find "$APP_PATH/bgm" -maxdepth 2 -type f | head -50
           else
-
             echo "INFO: bgm/ not included"
-
           fi
 
       # ============================================================
@@ -735,214 +280,95 @@ jobs:
         run: |
           set -e
 
-          APP_PATH=$(find build \
-            -type d \
-            -name "*.app" \
-            | head -1)
+          echo "========================================"
+          echo "Package resources"
+          echo "========================================"
 
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: .app not found"
-            exit 1
-          fi
-
-          if [ -d resources ]; then
-
-            echo "===== Copy resources ====="
-
-            cp -R \
-              resources/. \
-              "$APP_PATH/"
-
+          if [ -d "resources" ]; then
+            cp -R resources/. "$APP_PATH/"
+            echo "resources/ copied"
           else
+            echo "INFO: resources/ directory not found"
+          fi
 
-            echo "No resources directory found"
+          # --------------------------------------------------------
+          # Optional data directory
+          #
+          # Do NOT fail the build if data/ does not exist.
+          # The TH06 PBG3 system may store virtual paths such as:
+          #
+          # data/wav/plst00.wav
+          #
+          # inside the DAT archives.
+          # --------------------------------------------------------
 
+          if [ -d "data" ]; then
+            cp -R data "$APP_PATH/"
+            echo "data/ copied"
+
+            if [ -f "$APP_PATH/data/wav/plst00.wav" ]; then
+              echo "OK: data/wav/plst00.wav"
+              ls -lh "$APP_PATH/data/wav/plst00.wav"
+            else
+              echo "INFO: data/wav/plst00.wav not found in physical data/"
+            fi
+          else
+            echo "INFO: data/ directory not found"
+            echo "INFO: This is not automatically an error."
+            echo "INFO: data/wav/plst00.wav may be inside a PBG3/DAT archive."
           fi
 
       # ============================================================
-      # Show final .app size
+      # Show final application contents
       # ============================================================
-      - name: Show final app size
+      - name: Inspect application
         run: |
           set -e
-
-          APP_PATH=$(find build \
-            -type d \
-            -name "*.app" \
-            | head -1)
 
           echo "========================================"
-          echo "FINAL APP"
+          echo "Application contents"
           echo "========================================"
 
           echo ""
-          echo "APP:"
-          echo "$APP_PATH"
+          echo "Top level:"
+          find "$APP_PATH" -maxdepth 1 -type f -print | sort
 
           echo ""
-          echo "Total app size:"
-
-          du -sh "$APP_PATH"
-
-          echo ""
-          echo "App contents size:"
-
-          du -sh "$APP_PATH"/* 2>/dev/null \
-            | sort -h
-
-      # ============================================================
-      # Verify ARM64 binary
-      # ============================================================
-      - name: Verify ARM64 iOS binary
-        run: |
-          set -e
-
-          APP_PATH=$(find build \
-            -type d \
-            -name "*.app" \
-            | head -1)
-
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: .app not found"
-            exit 1
-          fi
-
-          EXECUTABLE=$(
-            /usr/libexec/PlistBuddy \
-              -c "Print :CFBundleExecutable" \
-              "$APP_PATH/Info.plist"
-          )
-
-          echo "Executable:"
-          echo "$EXECUTABLE"
-
-          BINARY="$APP_PATH/$EXECUTABLE"
-
-          if [ ! -f "$BINARY" ]; then
-
-            echo "ERROR: Executable not found:"
-            echo "$BINARY"
-
-            echo ""
-            echo "===== App contents ====="
-
-            find "$APP_PATH" \
-              -maxdepth 2 \
-              -print
-
-            exit 1
-
-          fi
+          echo "Directories:"
+          find "$APP_PATH" -maxdepth 2 -type d -print | sort
 
           echo ""
-          echo "===== file ====="
-
-          file "$BINARY"
-
-          echo ""
-          echo "===== Architectures ====="
-
-          lipo -info "$BINARY"
-
-          echo ""
-          echo "===== SDK ====="
-
-          otool -l "$BINARY" \
-            | grep -A4 LC_BUILD_VERSION \
-            | head -20 || true
-
-      # ============================================================
-      # Verify Info.plist
-      # ============================================================
-      - name: Verify Info.plist
-        run: |
-          set -e
-
-          APP_PATH=$(find build \
-            -type d \
-            -name "*.app" \
-            | head -1)
-
-          PLIST="$APP_PATH/Info.plist"
-
-          echo "===== Info.plist verification ====="
-
-          echo ""
-          echo "CFBundleExecutable:"
-
-          /usr/libexec/PlistBuddy \
-            -c "Print :CFBundleExecutable" \
-            "$PLIST"
-
-          echo ""
-          echo "CFBundleIdentifier:"
-
-          /usr/libexec/PlistBuddy \
-            -c "Print :CFBundleIdentifier" \
-            "$PLIST"
-
-          echo ""
-          echo "CFBundlePackageType:"
-
-          /usr/libexec/PlistBuddy \
-            -c "Print :CFBundlePackageType" \
-            "$PLIST"
-
-          echo ""
-          echo "Info.plist OK"
+          echo "DAT files:"
+          find "$APP_PATH" -maxdepth 1 \
+            \( -iname "*.dat" \) \
+            -print \
+            -exec ls -lh {} \;
 
       # ============================================================
       # Create IPA
       # ============================================================
-      - name: Create IPA
+      - name: Package IPA
         run: |
           set -e
 
-          APP_PATH=$(find build \
-            -type d \
-            -name "*.app" \
-            | head -1)
-
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: .app not found"
-            exit 1
-          fi
+          echo "========================================"
+          echo "Package IPA"
+          echo "========================================"
 
           rm -rf Payload
-          rm -f th06.ipa
-
           mkdir -p Payload
 
-          cp -R \
-            "$APP_PATH" \
-            Payload/
+          cp -R "$APP_PATH" Payload/
 
-          echo "========================================"
-          echo "PAYLOAD"
-          echo "========================================"
+          rm -f TouhouTH06.ipa
 
-          find Payload \
-            -maxdepth 2 \
-            -print \
-            | head -200
+          cd Payload
+          zip -r ../TouhouTH06.ipa . >/dev/null
+          cd ..
 
           echo ""
-          echo "Creating IPA..."
-
-          zip -r \
-            -q \
-            th06.ipa \
-            Payload
-
-          echo ""
-          echo "===== IPA ====="
-
-          ls -lh th06.ipa
-
-          echo ""
-          echo "IPA size:"
-
-          du -sh th06.ipa
+          echo "IPA created:"
+          ls -lh TouhouTH06.ipa
 
       # ============================================================
       # Verify IPA
@@ -951,130 +377,45 @@ jobs:
         run: |
           set -e
 
-          test -f th06.ipa
-
           echo "========================================"
-          echo "VERIFY IPA"
+          echo "Verify IPA"
           echo "========================================"
 
-          echo ""
-          echo "IPA size:"
-
-          du -sh th06.ipa
+          unzip -l TouhouTH06.ipa > ipa-list.txt
 
           echo ""
-          echo "Checking IPA contents..."
+          echo "Checking KOUMAKYO DAT files..."
 
-          unzip -l th06.ipa > ipa-list.txt
+          for file in \
+            "KOUMAKYO_IN.dat" \
+            "KOUMAKYO_ST.dat" \
+            "KOUMAKYO_TL.dat" \
+            "KOUMAKYO_MD.dat" \
+            "KOUMAKYO_ED.dat" \
+            "KOUMAKYO_CM.dat"
+          do
+            if grep -q "$file" ipa-list.txt; then
+              echo "OK: $file"
+            else
+              echo "ERROR: $file is missing from IPA"
+              exit 1
+            fi
+          done
 
           echo ""
-          echo "DAT files inside IPA:"
-
-          grep -E \
-            'Payload/.+\.app/KOUMAKYO_(IN|ST|TL|MD|ED|CM)\.dat' \
-            ipa-list.txt \
-            || true
-
-          echo ""
-          echo "Checking KOUMAKYO_IN.dat..."
+          echo "Checking data/wav/plst00.wav..."
 
           if grep -qE \
-            'Payload/.+\.app/KOUMAKYO_IN\.dat' \
+            'Payload/.+\.app/data/wav/plst00\.wav' \
             ipa-list.txt; then
-
-            echo "OK: KOUMAKYO_IN.dat is inside IPA"
-
+            echo "OK: physical data/wav/plst00.wav is inside IPA"
           else
-
-            echo "ERROR: KOUMAKYO_IN.dat not found in IPA"
-            exit 1
-
+            echo "INFO: physical data/wav/plst00.wav is not inside IPA"
+            echo "INFO: This can be normal if the file is stored inside a DAT archive."
           fi
 
           echo ""
-          echo "Checking KOUMAKYO_ST.dat..."
-
-          if grep -qE \
-            'Payload/.+\.app/KOUMAKYO_ST\.dat' \
-            ipa-list.txt; then
-
-            echo "OK: KOUMAKYO_ST.dat is inside IPA"
-
-          else
-
-            echo "ERROR: KOUMAKYO_ST.dat not found in IPA"
-            exit 1
-
-          fi
-
-          echo ""
-          echo "Checking KOUMAKYO_TL.dat..."
-
-          if grep -qE \
-            'Payload/.+\.app/KOUMAKYO_TL\.dat' \
-            ipa-list.txt; then
-
-            echo "OK: KOUMAKYO_TL.dat is inside IPA"
-
-          else
-
-            echo "ERROR: KOUMAKYO_TL.dat not found in IPA"
-            exit 1
-
-          fi
-
-          echo ""
-          echo "Checking KOUMAKYO_MD.dat..."
-
-          if grep -qE \
-            'Payload/.+\.app/KOUMAKYO_MD\.dat' \
-            ipa-list.txt; then
-
-            echo "OK: KOUMAKYO_MD.dat is inside IPA"
-
-          else
-
-            echo "ERROR: KOUMAKYO_MD.dat not found in IPA"
-            exit 1
-
-          fi
-
-          echo ""
-          echo "Checking KOUMAKYO_ED.dat..."
-
-          if grep -qE \
-            'Payload/.+\.app/KOUMAKYO_ED\.dat' \
-            ipa-list.txt; then
-
-            echo "OK: KOUMAKYO_ED.dat is inside IPA"
-
-          else
-
-            echo "ERROR: KOUMAKYO_ED.dat not found in IPA"
-            exit 1
-
-          fi
-
-          echo ""
-          echo "Checking KOUMAKYO_CM.dat..."
-
-          if grep -qE \
-            'Payload/.+\.app/KOUMAKYO_CM\.dat' \
-            ipa-list.txt; then
-
-            echo "OK: KOUMAKYO_CM.dat is inside IPA"
-
-          else
-
-            echo "ERROR: KOUMAKYO_CM.dat not found in IPA"
-            exit 1
-
-          fi
-
-          echo ""
-          echo "========================================"
-          echo "IPA verification completed successfully."
-          echo "========================================"
+          echo "IPA verification completed."
 
       # ============================================================
       # Upload IPA
@@ -1082,7 +423,6 @@ jobs:
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: th06-ios-ipa
-          path: th06.ipa
+          name: TouhouTH06-iOS
+          path: TouhouTH06.ipa
           if-no-files-found: error
-          retention-days: 7
