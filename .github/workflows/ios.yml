@@ -1,170 +1,124 @@
 name: Build iOS IPA
-
 on:
   push:
   workflow_dispatch:
-
 jobs:
   build-ios:
     runs-on: macos-latest
-
     steps:
-
       # ============================================================
       # Checkout
       # ============================================================
-
       - name: Checkout repository
         uses: actions/checkout@v4
-
-
       # ============================================================
       # Check Xcode
       # ============================================================
-
       - name: Check Xcode
         run: |
+          set -e
           echo "===== Xcode ====="
           xcodebuild -version
-
           echo ""
           echo "===== macOS ====="
           sw_vers
-
           echo ""
           echo "===== iOS SDK ====="
           xcrun --sdk iphoneos --show-sdk-path
-
-
       # ============================================================
       # Download SDL2
       # ============================================================
-
       - name: Download SDL2
         run: |
           set -e
-
           mkdir -p external
-
           git clone --depth 1 \
             --branch release-2.32.8 \
             https://github.com/libsdl-org/SDL.git \
             external/SDL
-
-
       # ============================================================
       # Download SDL2_image
       # ============================================================
-
       - name: Download SDL2_image
         run: |
           set -e
-
           git clone --depth 1 \
             --branch release-2.8.8 \
             https://github.com/libsdl-org/SDL_image.git \
             external/SDL_image
-
-
       # ============================================================
       # Download SDL2_ttf
       # ============================================================
-
       - name: Download SDL2_ttf
         run: |
           set -e
-
           git clone --depth 1 \
             --branch release-2.24.0 \
             https://github.com/libsdl-org/SDL_ttf.git \
             external/SDL_ttf
-
-
       # ============================================================
       # Check downloaded libraries
       # ============================================================
-
       - name: Check SDL libraries
         run: |
           set -e
-
           echo "===== external ====="
           find external -maxdepth 2 -type f | head -100
-
           echo ""
           echo "===== SDL2 ====="
           test -d external/SDL
           test -f external/SDL/include/SDL.h
           echo "SDL2 OK"
-
           echo ""
           echo "===== SDL2_image ====="
           test -d external/SDL_image
           test -f external/SDL_image/include/SDL_image.h
           echo "SDL2_image OK"
-
           echo ""
           echo "===== SDL2_ttf ====="
           test -d external/SDL_ttf
           test -f external/SDL_ttf/SDL_ttf.h
           echo "SDL2_ttf OK"
-
           echo ""
           echo "SDL_ttf.h location:"
           find external/SDL_ttf -type f -name "SDL_ttf.h"
-
-
       # ============================================================
       # Download SDL2_image dependencies
       # ============================================================
-
       - name: Download SDL2_image dependencies
         run: |
           set -e
-
           cd external/SDL_image
-
           if [ -f external/download.sh ]; then
             chmod +x external/download.sh
             ./external/download.sh
           else
             echo "SDL_image download.sh not found"
           fi
-
-
       # ============================================================
       # Download SDL2_ttf dependencies
       # ============================================================
-
       - name: Download SDL2_ttf dependencies
         run: |
           set -e
-
           cd external/SDL_ttf
-
           if [ -f external/download.sh ]; then
             chmod +x external/download.sh
             ./external/download.sh
           else
             echo "SDL_ttf download.sh not found"
           fi
-
-
       # ============================================================
       # Check FreeType
       # ============================================================
-
       - name: Check FreeType
         run: |
           echo "===== FreeType ====="
-
           find external/SDL_ttf \
             -type f \
             -name "ft2build.h" \
             -print
-
           echo ""
-
           if find external/SDL_ttf \
             -type f \
             -name "ft2build.h" \
@@ -173,26 +127,18 @@ jobs:
           else
             echo "WARNING: FreeType headers not found"
           fi
-
-
       # ============================================================
       # Create unified SDL2 include directory
       # ============================================================
-
       - name: Create unified SDL2 include directory
         run: |
           set -e
-
           rm -rf include
           mkdir -p include/SDL2
-
           echo "===== Copy SDL2 headers ====="
-
           cp -f external/SDL/include/*.h \
             include/SDL2/
-
           echo "===== Copy SDL2_image header ====="
-
           if [ -f external/SDL_image/include/SDL_image.h ]; then
             cp -f external/SDL_image/include/SDL_image.h \
               include/SDL2/SDL_image.h
@@ -200,9 +146,7 @@ jobs:
             echo "ERROR: SDL_image.h not found"
             exit 1
           fi
-
           echo "===== Copy SDL2_ttf header ====="
-
           if [ -f external/SDL_ttf/SDL_ttf.h ]; then
             cp -f external/SDL_ttf/SDL_ttf.h \
               include/SDL2/SDL_ttf.h
@@ -210,85 +154,120 @@ jobs:
             echo "ERROR: SDL_ttf.h not found"
             exit 1
           fi
-
           echo ""
           echo "===== Unified headers ====="
-
           ls -la include/SDL2
-
           echo ""
           echo "===== Required headers ====="
-
           test -f include/SDL2/SDL.h
           test -f include/SDL2/SDL_image.h
           test -f include/SDL2/SDL_ttf.h
-
           echo ""
           echo "All SDL2 headers OK"
-
-
       # ============================================================
       # Check project files
       # ============================================================
-
       - name: Check project
         run: |
           set -e
-
           echo "===== Project ====="
           ls -la
-
           echo ""
           echo "===== Source ====="
           find src -type f | head -100
-
           echo ""
           echo "===== Required files ====="
-
           test -f CMakeLists.txt
           test -f embed_shaders.cmake
           test -f src/main_ios.mm
           test -f Info.plist
-
           echo "CMakeLists.txt OK"
           echo "embed_shaders.cmake OK"
           echo "main_ios.mm OK"
           echo "Info.plist OK"
-
-
       # ============================================================
       # Check shader files
       # ============================================================
-
       - name: Check shaders
         run: |
           set -e
-
           echo "===== Shader files ====="
-
           if [ -f src/graphics/ff.vert ]; then
             echo "ff.vert found"
           else
             echo "WARNING: ff.vert not found"
           fi
-
           if [ -f src/graphics/ff.frag ]; then
             echo "ff.frag found"
           else
             echo "WARNING: ff.frag not found"
           fi
-
-
+      # ============================================================
+      # Check TH06 game data
+      # ============================================================
+      - name: Check TH06 game data
+        run: |
+          set -e
+          echo "========================================"
+          echo "TH06 GAME DATA"
+          echo "========================================"
+          if [ ! -d game ]; then
+            echo "ERROR: game/ directory does not exist"
+            echo ""
+            echo "Create:"
+            echo "game/"
+            echo ""
+            echo "Put your TH06 files inside it."
+            exit 1
+          fi
+          echo "game/ found"
+          echo ""
+          echo "===== Game files ====="
+          find game -type f -print | sort
+          echo ""
+          echo "===== Game data size ====="
+          du -sh game
+      # ============================================================
+      # Check important DAT files
+      # ============================================================
+      - name: Check TH06 DAT files
+        run: |
+          set -e
+          echo "========================================"
+          echo "CHECK TH06 DAT FILES"
+          echo "========================================"
+          REQUIRED_FILES="
+          IN.DAT
+          ST.DAT
+          TL.DAT
+          _MD.DAT
+          _ED.DAT
+          _CM.DAT
+          "
+          MISSING=0
+          for FILE in $REQUIRED_FILES; do
+            if [ -f "game/$FILE" ]; then
+              SIZE=$(du -h "game/$FILE" | cut -f1)
+              echo "OK: $FILE ($SIZE)"
+            else
+              echo "WARNING: game/$FILE not found"
+              MISSING=1
+            fi
+          done
+          echo ""
+          if [ "$MISSING" -eq 1 ]; then
+            echo "WARNING: Some DAT files are missing."
+            echo "Build will continue."
+          else
+            echo "All expected DAT files found."
+          fi
       # ============================================================
       # Configure CMake
       # ============================================================
-
       - name: Configure iOS ARM64
         run: |
           set -e
-
           rm -rf build
-
           cmake \
             -S . \
             -B build \
@@ -316,35 +295,25 @@ jobs:
             -DSDL2TTF_SAMPLES=OFF \
             -DSDL2TTF_TESTS=OFF \
             -DSDL2TTF_VENDORED=ON
-
           echo ""
           echo "===== CMake configuration completed ====="
-
-
       # ============================================================
       # Check generated Xcode project
       # ============================================================
-
       - name: Check Xcode project
         run: |
           set -e
-
           echo "===== Build directory ====="
           find build -maxdepth 2 -type f | head -100
-
           echo ""
           echo "===== Xcode projects ====="
           find build -name "*.xcodeproj" -print
-
-
       # ============================================================
       # Build
       # ============================================================
-
       - name: Build iOS
         run: |
           set -e
-
           cmake \
             --build build \
             --config Release \
@@ -353,68 +322,47 @@ jobs:
                CODE_SIGNING_ALLOWED=NO \
                CODE_SIGNING_REQUIRED=NO \
                CODE_SIGN_IDENTITY=""
-
-
       # ============================================================
       # Find application
       # ============================================================
-
       - name: Find application
         run: |
           set -e
-
           echo "===== Searching for .app ====="
-
           find build \
             -type d \
             -name "*.app" \
             -print
-
-
       # ============================================================
       # Fix final iOS Info.plist
-      #
-      # IMPORTANT:
-      # This must happen BEFORE Verify ARM64.
       # ============================================================
-
       - name: Fix Info.plist
         run: |
           set -e
-
           APP_PATH=$(find build \
             -type d \
             -name "*.app" \
             | head -1)
-
           if [ -z "$APP_PATH" ]; then
             echo "ERROR: .app not found"
             exit 1
           fi
-
           PLIST="$APP_PATH/Info.plist"
-
           echo "========================================"
           echo "iOS App Bundle"
           echo "========================================"
-
           echo "APP:"
           echo "$APP_PATH"
-
           echo ""
           echo "Info.plist:"
           echo "$PLIST"
-
           if [ ! -f "$PLIST" ]; then
             echo "ERROR: Info.plist does not exist"
             exit 1
           fi
-
-
           # --------------------------------------------------------
           # CFBundleExecutable
           # --------------------------------------------------------
-
           /usr/libexec/PlistBuddy \
             -c "Set :CFBundleExecutable th06" \
             "$PLIST" \
@@ -422,24 +370,19 @@ jobs:
           /usr/libexec/PlistBuddy \
             -c "Add :CFBundleExecutable string th06" \
             "$PLIST"
-
-
           # --------------------------------------------------------
           # CFBundleIdentifier
           # --------------------------------------------------------
-
           /usr/libexec/PlistBuddy \
             -c "Set :CFBundleIdentifier com.example.th06" \
             "$PLIST" \
             2>/dev/null || \
           /usr/libexec/PlistBuddy \
-            -c "Add :CFBundleIdentifier string com.example.th06"
-
-
+            -c "Add :CFBundleIdentifier string com.example.th06" \
+            "$PLIST"
           # --------------------------------------------------------
           # CFBundleDisplayName
           # --------------------------------------------------------
-
           /usr/libexec/PlistBuddy \
             -c "Set :CFBundleDisplayName 東方紅魔郷" \
             "$PLIST" \
@@ -447,12 +390,9 @@ jobs:
           /usr/libexec/PlistBuddy \
             -c "Add :CFBundleDisplayName string 東方紅魔郷" \
             "$PLIST"
-
-
           # --------------------------------------------------------
           # CFBundlePackageType
           # --------------------------------------------------------
-
           /usr/libexec/PlistBuddy \
             -c "Set :CFBundlePackageType APPL" \
             "$PLIST" \
@@ -460,12 +400,9 @@ jobs:
           /usr/libexec/PlistBuddy \
             -c "Add :CFBundlePackageType string APPL" \
             "$PLIST"
-
-
           # --------------------------------------------------------
           # LSRequiresIPhoneOS
           # --------------------------------------------------------
-
           /usr/libexec/PlistBuddy \
             -c "Set :LSRequiresIPhoneOS true" \
             "$PLIST" \
@@ -473,12 +410,9 @@ jobs:
           /usr/libexec/PlistBuddy \
             -c "Add :LSRequiresIPhoneOS bool true" \
             "$PLIST"
-
-
           # --------------------------------------------------------
           # Version
           # --------------------------------------------------------
-
           /usr/libexec/PlistBuddy \
             -c "Set :CFBundleShortVersionString 1.0" \
             "$PLIST" \
@@ -486,243 +420,318 @@ jobs:
           /usr/libexec/PlistBuddy \
             -c "Add :CFBundleShortVersionString string 1.0" \
             "$PLIST"
-
-
           /usr/libexec/PlistBuddy \
             -c "Set :CFBundleVersion 1" \
             "$PLIST" \
             2>/dev/null || \
           /usr/libexec/PlistBuddy \
-            -c "Add :CFBundleVersion string 1"
-
-
+            -c "Add :CFBundleVersion string 1" \
+            "$PLIST"
           echo ""
           echo "========================================"
           echo "Final Info.plist"
           echo "========================================"
-
           plutil -p "$PLIST"
-
-          echo ""
-          echo "========================================"
-          echo "CFBundleExecutable"
-          echo "========================================"
-
-          /usr/libexec/PlistBuddy \
-            -c "Print :CFBundleExecutable" \
-            "$PLIST"
-
-
-      # ============================================================
-      # Package resources
-      # ============================================================
-
-      - name: Package resources
-        run: |
-          set -e
-
-          APP_PATH=$(find build \
-            -type d \
-            -name "*.app" \
-            | head -1)
-
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: .app not found"
-            exit 1
-          fi
-
-          echo "App path:"
-          echo "$APP_PATH"
-
-          if [ -d resources ]; then
-
-            echo ""
-            echo "===== Copy resources ====="
-
-            cp -R resources/. "$APP_PATH/"
-
-          else
-
-            echo "No resources directory found"
-
-          fi
-
-
-      # ============================================================
-      # Verify ARM64 binary
-      # ============================================================
-
-      - name: Verify ARM64 iOS binary
-        run: |
-          set -e
-
-          APP_PATH=$(find build \
-            -type d \
-            -name "*.app" \
-            | head -1)
-
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: .app not found"
-            exit 1
-          fi
-
-          echo "APP:"
-          echo "$APP_PATH"
-
-
-          # --------------------------------------------------------
-          # Read executable from Info.plist
-          # --------------------------------------------------------
-
-          EXECUTABLE=$(
-            /usr/libexec/PlistBuddy \
-              -c "Print :CFBundleExecutable" \
-              "$APP_PATH/Info.plist"
-          )
-
-          echo ""
-          echo "Executable:"
-          echo "$EXECUTABLE"
-
-
-          # --------------------------------------------------------
-          # Check executable
-          # --------------------------------------------------------
-
-          BINARY="$APP_PATH/$EXECUTABLE"
-
-          if [ ! -f "$BINARY" ]; then
-            echo "ERROR: Executable not found:"
-            echo "$BINARY"
-
-            echo ""
-            echo "===== App contents ====="
-            find "$APP_PATH" -maxdepth 2 -print
-
-            exit 1
-          fi
-
-
-          echo ""
-          echo "===== file ====="
-
-          file "$BINARY"
-
-
-          echo ""
-          echo "===== Architectures ====="
-
-          lipo -info "$BINARY"
-
-
-          echo ""
-          echo "===== SDK ====="
-
-          otool -l "$BINARY" \
-            | grep -A4 LC_BUILD_VERSION \
-            | head -20 || true
-
-
-      # ============================================================
-      # Verify Info.plist
-      # ============================================================
-
-      - name: Verify Info.plist
-        run: |
-          set -e
-
-          APP_PATH=$(find build \
-            -type d \
-            -name "*.app" \
-            | head -1)
-
-          PLIST="$APP_PATH/Info.plist"
-
-          echo "===== Info.plist verification ====="
-
           echo ""
           echo "CFBundleExecutable:"
           /usr/libexec/PlistBuddy \
             -c "Print :CFBundleExecutable" \
             "$PLIST"
-
+      # ============================================================
+      # Copy TH06 game data into .app
+      # ============================================================
+      - name: Copy TH06 game data
+        run: |
+          set -e
+          APP_PATH=$(find build \
+            -type d \
+            -name "*.app" \
+            | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: .app not found"
+            exit 1
+          fi
+          echo "========================================"
+          echo "COPY TH06 GAME DATA"
+          echo "========================================"
+          echo "Source:"
+          echo "$(pwd)/game"
+          echo ""
+          echo "Destination:"
+          echo "$APP_PATH"
+          if [ ! -d game ]; then
+            echo "ERROR: game/ directory not found"
+            exit 1
+          fi
+          cp -R \
+            game/. \
+            "$APP_PATH/"
+          echo ""
+          echo "Game data copied successfully."
+      # ============================================================
+      # Verify game data inside .app
+      # ============================================================
+      - name: Verify TH06 game data in app
+        run: |
+          set -e
+          APP_PATH=$(find build \
+            -type d \
+            -name "*.app" \
+            | head -1)
+          echo "========================================"
+          echo "VERIFY GAME DATA IN APP"
+          echo "========================================"
+          echo ""
+          echo "Top-level app files:"
+          find "$APP_PATH" \
+            -maxdepth 1 \
+            -type f \
+            -print \
+            | sort
+          echo ""
+          echo "DAT files in app:"
+          find "$APP_PATH" \
+            -maxdepth 1 \
+            -type f \
+            \( \
+              -name "*.DAT" \
+              -o -name "*.dat" \
+            \) \
+            -print \
+            | sort
+          echo ""
+          echo "Checking expected files:"
+          for FILE in \
+            IN.DAT \
+            ST.DAT \
+            TL.DAT \
+            _MD.DAT \
+            _ED.DAT \
+            _CM.DAT
+          do
+            if [ -f "$APP_PATH/$FILE" ]; then
+              SIZE=$(du -h "$APP_PATH/$FILE" | cut -f1)
+              echo "OK: $FILE ($SIZE)"
+            else
+              echo "WARNING: $FILE not found in .app"
+            fi
+          done
+          echo ""
+          echo "Checking bgm:"
+          if [ -d "$APP_PATH/bgm" ]; then
+            echo "OK: bgm/ exists"
+            du -sh "$APP_PATH/bgm"
+          else
+            echo "INFO: bgm/ not included"
+          fi
+      # ============================================================
+      # Package resources
+      # ============================================================
+      - name: Package resources
+        run: |
+          set -e
+          APP_PATH=$(find build \
+            -type d \
+            -name "*.app" \
+            | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: .app not found"
+            exit 1
+          fi
+          if [ -d resources ]; then
+            echo "===== Copy resources ====="
+            cp -R \
+              resources/. \
+              "$APP_PATH/"
+          else
+            echo "No resources directory found"
+          fi
+      # ============================================================
+      # Show final .app size
+      # ============================================================
+      - name: Show final app size
+        run: |
+          set -e
+          APP_PATH=$(find build \
+            -type d \
+            -name "*.app" \
+            | head -1)
+          echo "========================================"
+          echo "FINAL APP"
+          echo "========================================"
+          echo ""
+          echo "APP:"
+          echo "$APP_PATH"
+          echo ""
+          echo "Total app size:"
+          du -sh "$APP_PATH"
+          echo ""
+          echo "App contents size:"
+          du -sh "$APP_PATH"/* 2>/dev/null \
+            | sort -h
+      # ============================================================
+      # Verify ARM64 binary
+      # ============================================================
+      - name: Verify ARM64 iOS binary
+        run: |
+          set -e
+          APP_PATH=$(find build \
+            -type d \
+            -name "*.app" \
+            | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: .app not found"
+            exit 1
+          fi
+          EXECUTABLE=$(
+            /usr/libexec/PlistBuddy \
+              -c "Print :CFBundleExecutable" \
+              "$APP_PATH/Info.plist"
+          )
+          echo "Executable:"
+          echo "$EXECUTABLE"
+          BINARY="$APP_PATH/$EXECUTABLE"
+          if [ ! -f "$BINARY" ]; then
+            echo "ERROR: Executable not found:"
+            echo "$BINARY"
+            echo ""
+            echo "===== App contents ====="
+            find "$APP_PATH" \
+              -maxdepth 2 \
+              -print
+            exit 1
+          fi
+          echo ""
+          echo "===== file ====="
+          file "$BINARY"
+          echo ""
+          echo "===== Architectures ====="
+          lipo -info "$BINARY"
+          echo ""
+          echo "===== SDK ====="
+          otool -l "$BINARY" \
+            | grep -A4 LC_BUILD_VERSION \
+            | head -20 || true
+      # ============================================================
+      # Verify Info.plist
+      # ============================================================
+      - name: Verify Info.plist
+        run: |
+          set -e
+          APP_PATH=$(find build \
+            -type d \
+            -name "*.app" \
+            | head -1)
+          PLIST="$APP_PATH/Info.plist"
+          echo "===== Info.plist verification ====="
+          echo ""
+          echo "CFBundleExecutable:"
+          /usr/libexec/PlistBuddy \
+            -c "Print :CFBundleExecutable" \
+            "$PLIST"
           echo ""
           echo "CFBundleIdentifier:"
           /usr/libexec/PlistBuddy \
             -c "Print :CFBundleIdentifier" \
             "$PLIST"
-
           echo ""
           echo "CFBundlePackageType:"
           /usr/libexec/PlistBuddy \
             -c "Print :CFBundlePackageType" \
             "$PLIST"
-
           echo ""
           echo "Info.plist OK"
-
-
       # ============================================================
       # Create IPA
       # ============================================================
-
       - name: Create IPA
         run: |
           set -e
-
           APP_PATH=$(find build \
             -type d \
             -name "*.app" \
             | head -1)
-
           if [ -z "$APP_PATH" ]; then
             echo "ERROR: .app not found"
             exit 1
           fi
-
           rm -rf Payload
           rm -f th06.ipa
-
           mkdir -p Payload
-
-          cp -R "$APP_PATH" Payload/
-
-          echo "===== Payload ====="
-          find Payload -maxdepth 2 -print
-
-          zip -r th06.ipa Payload
-
+          cp -R \
+            "$APP_PATH" \
+            Payload/
+          echo "========================================"
+          echo "PAYLOAD"
+          echo "========================================"
+          find Payload \
+            -maxdepth 2 \
+            -print \
+            | head -200
+          echo ""
+          echo "Creating IPA..."
+          zip -r \
+            -q \
+            th06.ipa \
+            Payload
           echo ""
           echo "===== IPA ====="
           ls -lh th06.ipa
-
-
+          echo ""
+          echo "IPA size:"
+          du -sh th06.ipa
       # ============================================================
       # Verify IPA
       # ============================================================
-
       - name: Verify IPA
         run: |
           set -e
-
           test -f th06.ipa
-
-          echo "===== IPA information ====="
-
-          unzip -l th06.ipa
-
+          echo "========================================"
+          echo "VERIFY IPA"
+          echo "========================================"
           echo ""
-          echo "IPA created successfully"
-
-
+          echo "IPA size:"
+          du -sh th06.ipa
+          echo ""
+          echo "Checking IPA contents..."
+          unzip -l th06.ipa > ipa-list.txt
+          echo ""
+          echo "DAT files inside IPA:"
+          grep -E \
+            'Payload/.+\.app/(IN|ST|TL|_MD|_ED|_CM)\.DAT' \
+            ipa-list.txt \
+            || true
+          echo ""
+          echo "Checking IN.DAT..."
+          if grep -q 'Payload/.app/IN.DAT' ipa-list.txt; then
+            echo "OK: IN.DAT is inside IPA"
+          else
+            echo "WARNING: IN.DAT not found in IPA"
+          fi
+          echo ""
+          echo "Checking ST.DAT..."
+          if grep -q 'Payload/.app/ST.DAT' ipa-list.txt; then
+            echo "OK: ST.DAT is inside IPA"
+          else
+            echo "WARNING: ST.DAT not found in IPA"
+          fi
+          echo ""
+          echo "Checking TL.DAT..."
+          if grep -q 'Payload/.app/TL.DAT' ipa-list.txt; then
+            echo "OK: TL.DAT is inside IPA"
+          else
+            echo "WARNING: TL.DAT not found in IPA"
+          fi
+          echo ""
+          echo "IPA verification completed."
       # ============================================================
       # Upload IPA
       # ============================================================
-
       - name: Upload IPA
         uses: actions/upload-artifact@v4
-
         with:
           name: th06-ios-ipa
           path: th06.ipa
           if-no-files-found: error
+          retention-days: 7
