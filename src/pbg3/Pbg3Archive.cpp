@@ -2,10 +2,84 @@
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
+#include <cstdarg>
 
 #include "pbg3/Pbg3Archive.hpp"
 
 Pbg3Archive **g_Pbg3Archives;
+
+
+// ============================================================
+// TH06 Runtime Log
+// ============================================================
+
+static void TH06WriteLog(const char *format, ...)
+{
+    char buffer[4096];
+
+    va_list args;
+    va_start(args, format);
+
+    std::vsnprintf(
+        buffer,
+        sizeof(buffer),
+        format,
+        args
+    );
+
+    va_end(args);
+
+    // --------------------------------------------------------
+    // Console
+    // --------------------------------------------------------
+
+    std::printf("%s", buffer);
+    std::fflush(stdout);
+
+
+    // --------------------------------------------------------
+    // iOS Documents/log.txt
+    // --------------------------------------------------------
+
+    const char *home = std::getenv("HOME");
+
+    if (home == NULL)
+    {
+        return;
+    }
+
+    char logPath[2048];
+
+    std::snprintf(
+        logPath,
+        sizeof(logPath),
+        "%s/Documents/log.txt",
+        home
+    );
+
+    FILE *logFile =
+        std::fopen(logPath, "ab");
+
+    if (logFile == NULL)
+    {
+        return;
+    }
+
+    std::fwrite(
+        buffer,
+        1,
+        std::strlen(buffer),
+        logFile
+    );
+
+    std::fflush(logFile);
+    std::fclose(logFile);
+}
+
+
+// ============================================================
+// Constructor
+// ============================================================
 
 Pbg3Archive::Pbg3Archive()
 {
@@ -14,14 +88,29 @@ Pbg3Archive::Pbg3Archive()
     this->entries = NULL;
     this->parser = NULL;
     this->unk = NULL;
+
+    TH06WriteLog(
+        "\n========================================\n"
+        "TH06 PBG3 LOGGER STARTED\n"
+        "========================================\n"
+    );
 }
+
+
+// ============================================================
+// ParseHeader
+// ============================================================
 
 i32 Pbg3Archive::ParseHeader()
 {
+    TH06WriteLog(
+        "\n[PBG3] ParseHeader START\n"
+    );
+
     if (this->parser->ReadMagic() != 0x33474250)
     {
-        printf(
-            "PBG3: invalid magic\n"
+        TH06WriteLog(
+            "[PBG3] ERROR: invalid magic\n"
         );
 
         if (this->parser != NULL)
@@ -33,19 +122,23 @@ i32 Pbg3Archive::ParseHeader()
         return false;
     }
 
-    this->numOfEntries = this->parser->ReadVarInt();
-    this->fileTableOffset = this->parser->ReadVarInt();
+    this->numOfEntries =
+        this->parser->ReadVarInt();
 
-    printf(
-        "PBG3: ParseHeader entries=%u tableOffset=%u\n",
+    this->fileTableOffset =
+        this->parser->ReadVarInt();
+
+    TH06WriteLog(
+        "[PBG3] ParseHeader entries=%u tableOffset=%u\n",
         this->numOfEntries,
         this->fileTableOffset
     );
 
-    if (!this->parser->SeekToOffset(this->fileTableOffset))
+    if (!this->parser->SeekToOffset(
+            this->fileTableOffset))
     {
-        printf(
-            "PBG3: failed to seek file table\n"
+        TH06WriteLog(
+            "[PBG3] ERROR: failed to seek file table\n"
         );
 
         if (this->parser != NULL)
@@ -57,12 +150,13 @@ i32 Pbg3Archive::ParseHeader()
         return false;
     }
 
-    this->entries = new Pbg3Entry[this->numOfEntries];
+    this->entries =
+        new Pbg3Entry[this->numOfEntries];
 
     if (this->entries == NULL)
     {
-        printf(
-            "PBG3: failed to allocate entries\n"
+        TH06WriteLog(
+            "[PBG3] ERROR: failed to allocate entries\n"
         );
 
         if (this->parser != NULL)
@@ -97,8 +191,8 @@ i32 Pbg3Archive::ParseHeader()
                 this->entries[idx].filename,
                 sizeof(this->entries[idx].filename)))
         {
-            printf(
-                "PBG3: failed to read filename at entry %u\n",
+            TH06WriteLog(
+                "[PBG3] ERROR: failed to read filename at entry %u\n",
                 idx
             );
 
@@ -117,22 +211,34 @@ i32 Pbg3Archive::ParseHeader()
             return false;
         }
 
-        /*
-         * Only print the TH06 files we are investigating.
-         */
-        if (std::strcmp(
-                this->entries[idx].filename,
-                "text.anm") == 0 ||
+        // ----------------------------------------------------
+        // Important TH06 resources
+        // ----------------------------------------------------
+
+        if (
             std::strcmp(
                 this->entries[idx].filename,
-                "plst00.wav") == 0 ||
+                "text.anm"
+            ) == 0 ||
+
             std::strcmp(
                 this->entries[idx].filename,
-                "pldead00.wav") == 0)
+                "plst00.wav"
+            ) == 0 ||
+
+            std::strcmp(
+                this->entries[idx].filename,
+                "pldead00.wav"
+            ) == 0
+        )
         {
-            printf(
-                "PBG3: RELATED ENTRY index=%u name=[%s] "
-                "offset=%u size=%u checksum=%u\n",
+            TH06WriteLog(
+                "\n[PBG3] !!! IMPORTANT ENTRY !!!\n"
+                "  index    = %u\n"
+                "  name     = [%s]\n"
+                "  offset   = %u\n"
+                "  size     = %u\n"
+                "  checksum = %u\n",
                 idx,
                 this->entries[idx].filename,
                 this->entries[idx].dataOffset,
@@ -142,13 +248,18 @@ i32 Pbg3Archive::ParseHeader()
         }
     }
 
-    printf(
-        "PBG3: ParseHeader completed, entries=%u\n",
+    TH06WriteLog(
+        "[PBG3] ParseHeader COMPLETE entries=%u\n",
         this->numOfEntries
     );
 
     return true;
 }
+
+
+// ============================================================
+// Release
+// ============================================================
 
 i32 Pbg3Archive::Release()
 {
@@ -168,26 +279,41 @@ i32 Pbg3Archive::Release()
     }
 
     std::free(this->unk);
+    this->unk = NULL;
 
     return true;
 }
+
+
+// ============================================================
+// FindEntry
+// ============================================================
 
 i32 Pbg3Archive::FindEntry(const char *path)
 {
     if (path == NULL)
     {
-        printf(
-            "PBG3 FindEntry: NULL path\n"
+        TH06WriteLog(
+            "[PBG3] FindEntry: NULL path\n"
         );
 
         return -1;
     }
 
-    printf(
-        "PBG3 FindEntry: searching [%s], entries=%u\n",
+    TH06WriteLog(
+        "[PBG3] FindEntry searching [%s], entries=%u\n",
         path,
         this->numOfEntries
     );
+
+    if (this->entries == NULL)
+    {
+        TH06WriteLog(
+            "[PBG3] FindEntry ERROR: entries == NULL\n"
+        );
+
+        return -1;
+    }
 
     for (u32 entryIdx = 0;
          entryIdx < this->numOfEntries;
@@ -201,10 +327,13 @@ i32 Pbg3Archive::FindEntry(const char *path)
             continue;
         }
 
-        if (std::strcmp(path, entryFilename) == 0)
+        if (std::strcmp(
+                path,
+                entryFilename
+            ) == 0)
         {
-            printf(
-                "PBG3 FindEntry: FOUND [%s] "
+            TH06WriteLog(
+                "[PBG3] FindEntry FOUND [%s] "
                 "index=%u size=%u checksum=%u\n",
                 entryFilename,
                 entryIdx,
@@ -216,22 +345,25 @@ i32 Pbg3Archive::FindEntry(const char *path)
         }
     }
 
-    /*
-     * We only need detailed diagnostics for these
-     * resources.
-     */
-    if (std::strcmp(path, "text.anm") == 0 ||
+    if (
+        std::strcmp(path, "text.anm") == 0 ||
         std::strcmp(path, "plst00.wav") == 0 ||
-        std::strcmp(path, "pldead00.wav") == 0)
+        std::strcmp(path, "pldead00.wav") == 0
+    )
     {
-        printf(
-            "PBG3 FindEntry: NOT FOUND [%s]\n",
+        TH06WriteLog(
+            "[PBG3] FindEntry NOT FOUND [%s]\n",
             path
         );
     }
 
     return -1;
 }
+
+
+// ============================================================
+// GetEntrySize
+// ============================================================
 
 u32 Pbg3Archive::GetEntrySize(u32 entryIdx)
 {
@@ -243,6 +375,11 @@ u32 Pbg3Archive::GetEntrySize(u32 entryIdx)
     return this->entries[entryIdx].uncompressedSize;
 }
 
+
+// ============================================================
+// ReadEntryRaw
+// ============================================================
+
 u8 *Pbg3Archive::ReadEntryRaw(
     u32 *outSize,
     u32 *outChecksum,
@@ -250,23 +387,35 @@ u8 *Pbg3Archive::ReadEntryRaw(
 {
     if (this->parser == NULL)
     {
+        TH06WriteLog(
+            "[PBG3] ReadEntryRaw ERROR: parser == NULL\n"
+        );
+
         return NULL;
     }
 
-    if (entryIdx >= this->numOfEntries)
-        return NULL;
+    if (entryIdx < 0 ||
+        entryIdx >= (i32)this->numOfEntries)
+    {
+        TH06WriteLog(
+            "[PBG3] ReadEntryRaw ERROR: invalid entry=%d\n",
+            entryIdx
+        );
 
-    if (outSize == NULL)
         return NULL;
+    }
 
-    if (outChecksum == NULL)
+    if (outSize == NULL ||
+        outChecksum == NULL)
+    {
         return NULL;
+    }
 
     if (!this->parser->SeekToOffset(
             this->entries[entryIdx].dataOffset))
     {
-        printf(
-            "PBG3: ReadEntryRaw failed to seek entry=%d\n",
+        TH06WriteLog(
+            "[PBG3] ReadEntryRaw failed to seek entry=%d\n",
             entryIdx
         );
 
@@ -275,7 +424,8 @@ u8 *Pbg3Archive::ReadEntryRaw(
 
     u32 size;
 
-    if (entryIdx == this->numOfEntries - 1)
+    if (entryIdx ==
+        (i32)this->numOfEntries - 1)
     {
         size =
             this->fileTableOffset -
@@ -288,26 +438,30 @@ u8 *Pbg3Archive::ReadEntryRaw(
             this->entries[entryIdx].dataOffset;
     }
 
-    u8 *data = (u8 *)malloc(size);
+    u8 *data =
+        (u8 *)std::malloc(size);
 
     if (data == NULL)
     {
-        printf(
-            "PBG3: ReadEntryRaw malloc failed size=%u\n",
+        TH06WriteLog(
+            "[PBG3] ReadEntryRaw malloc failed size=%u\n",
             size
         );
 
         return NULL;
     }
 
-    if (!this->parser->ReadByteAlignedData(data, size))
+    if (!this->parser->ReadByteAlignedData(
+            data,
+            size))
     {
-        printf(
-            "PBG3: ReadEntryRaw failed reading entry=%d\n",
+        TH06WriteLog(
+            "[PBG3] ReadEntryRaw failed reading entry=%d\n",
             entryIdx
         );
 
-        free(data);
+        std::free(data);
+
         return NULL;
     }
 
@@ -319,15 +473,27 @@ u8 *Pbg3Archive::ReadEntryRaw(
     return data;
 }
 
+
+// ============================================================
+// Destructor
+// ============================================================
+
 Pbg3Archive::~Pbg3Archive()
 {
     this->Release();
 }
 
+
+// ============================================================
+// Load
+// ============================================================
+
 i32 Pbg3Archive::Load(const char *path)
 {
-    printf(
-        "PBG3: Loading archive [%s]\n",
+    TH06WriteLog(
+        "\n[PBG3] ========================================\n"
+        "[PBG3] Loading archive [%s]\n"
+        "[PBG3] ========================================\n",
         path != NULL ? path : "(null)"
     );
 
@@ -336,12 +502,13 @@ i32 Pbg3Archive::Load(const char *path)
         return false;
     }
 
-    this->parser = new Pbg3Parser();
+    this->parser =
+        new Pbg3Parser();
 
     if (this->parser == NULL)
     {
-        printf(
-            "PBG3: failed to create parser\n"
+        TH06WriteLog(
+            "[PBG3] ERROR: failed to create parser\n"
         );
 
         return false;
@@ -349,8 +516,8 @@ i32 Pbg3Archive::Load(const char *path)
 
     if (!this->parser->OpenArchive(path))
     {
-        printf(
-            "PBG3: failed to open archive [%s]\n",
+        TH06WriteLog(
+            "[PBG3] ERROR: failed to open archive [%s]\n",
             path != NULL ? path : "(null)"
         );
 
@@ -365,81 +532,94 @@ i32 Pbg3Archive::Load(const char *path)
 
     if (!this->ParseHeader())
     {
-        printf(
-            "PBG3: ParseHeader failed [%s]\n",
+        TH06WriteLog(
+            "[PBG3] ERROR: ParseHeader failed [%s]\n",
             path != NULL ? path : "(null)"
         );
 
         return false;
     }
 
-    printf(
-        "PBG3: archive loaded successfully [%s]\n",
+    TH06WriteLog(
+        "[PBG3] archive loaded successfully [%s]\n",
         path != NULL ? path : "(null)"
     );
 
     return true;
 }
 
+
+// ============================================================
+// LZSS
+// ============================================================
+
 #define LZSS_DICTSIZE 0x2000
 #define LZSS_DICTSIZE_MASK 0x1fff
 #define LZSS_MIN_MATCH 3
 
-#define DEC_NEXT_BIT()                                                                                                 \
-    inBitMask >>= 1;                                                                                                   \
-    if (inBitMask == 0)                                                                                                \
-    {                                                                                                                  \
-        inBitMask = 0x80;                                                                                              \
+#define DEC_NEXT_BIT() \
+    inBitMask >>= 1; \
+    if (inBitMask == 0) \
+    { \
+        inBitMask = 0x80; \
     }
 
-#define DEC_WRITE_BYTE(data)                                                                                           \
-    *outCursor++ = data;                                                                                               \
-    dict[dictHead] = data;                                                                                             \
+#define DEC_WRITE_BYTE(data) \
+    *outCursor++ = data; \
+    dict[dictHead] = data; \
     dictHead = (dictHead + 1) & LZSS_DICTSIZE_MASK;
 
-#define DEC_HANDLE_FETCH_NEW_BYTE()                                                                                    \
-    if (inBitMask == 0x80)                                                                                             \
-    {                                                                                                                  \
-        currByte = *inCursor;                                                                                          \
-        if (inCursor - rawData >= (i32)size)                                                                           \
-        {                                                                                                              \
-            currByte = 0;                                                                                              \
-        }                                                                                                              \
-        else                                                                                                           \
-        {                                                                                                              \
-            inCursor++;                                                                                                \
-        }                                                                                                              \
-        checksum += currByte;                                                                                          \
+#define DEC_HANDLE_FETCH_NEW_BYTE() \
+    if (inBitMask == 0x80) \
+    { \
+        currByte = *inCursor; \
+        if (inCursor - rawData >= (i32)size) \
+        { \
+            currByte = 0; \
+        } \
+        else \
+        { \
+            inCursor++; \
+        } \
+        checksum += currByte; \
     }
 
-#define DEC_READ_FLAG_BIT()                                                                                            \
-    DEC_HANDLE_FETCH_NEW_BYTE();                                                                                       \
-    opcode = currByte & inBitMask;                                                                                     \
+#define DEC_READ_FLAG_BIT() \
+    DEC_HANDLE_FETCH_NEW_BYTE(); \
+    opcode = currByte & inBitMask; \
     DEC_NEXT_BIT();
 
-#define DEC_READ_BITS(bitsCount)                                                                                       \
-    outBitMask = 0x01 << (bitsCount - 1);                                                                              \
-    inBits = 0;                                                                                                        \
-    while (outBitMask != 0)                                                                                            \
-    {                                                                                                                  \
-        DEC_HANDLE_FETCH_NEW_BYTE();                                                                                   \
-        if ((currByte & inBitMask) != 0)                                                                               \
-        {                                                                                                              \
-            inBits |= outBitMask;                                                                                      \
-        }                                                                                                              \
-        outBitMask >>= 1;                                                                                              \
-        DEC_NEXT_BIT();                                                                                                \
+#define DEC_READ_BITS(bitsCount) \
+    outBitMask = 0x01 << (bitsCount - 1); \
+    inBits = 0; \
+    while (outBitMask != 0) \
+    { \
+        DEC_HANDLE_FETCH_NEW_BYTE(); \
+        if ((currByte & inBitMask) != 0) \
+        { \
+            inBits |= outBitMask; \
+        } \
+        outBitMask >>= 1; \
+        DEC_NEXT_BIT(); \
     }
+
+
+// ============================================================
+// ReadDecompressEntry
+// ============================================================
 
 u8 *Pbg3Archive::ReadDecompressEntry(
     u32 entryIdx,
     const char *filename)
 {
-    if (entryIdx >= this->numOfEntries ||
-        this->parser == NULL)
+    if (
+        entryIdx >= this->numOfEntries ||
+        this->parser == NULL
+    )
     {
-        printf(
-            "PBG3 Decompress: invalid entry=%u filename=[%s]\n",
+        TH06WriteLog(
+            "[PBG3] Decompress INVALID "
+            "entry=%u filename=[%s]\n",
             entryIdx,
             filename != NULL ? filename : "(null)"
         );
@@ -447,25 +627,29 @@ u8 *Pbg3Archive::ReadDecompressEntry(
         return NULL;
     }
 
-    printf(
-        "PBG3 Decompress: START entry=%u filename=[%s]\n",
+    TH06WriteLog(
+        "\n[PBG3] Decompress START "
+        "entry=%u filename=[%s]\n",
         entryIdx,
         filename != NULL ? filename : "(null)"
     );
 
-    u32 size = this->GetEntrySize(entryIdx);
+    u32 size =
+        this->GetEntrySize(entryIdx);
 
-    printf(
-        "PBG3 Decompress: expected uncompressed size=%u\n",
+    TH06WriteLog(
+        "[PBG3] Expected uncompressed size=%u\n",
         size
     );
 
-    u8 *out = (u8 *)malloc(size);
+    u8 *out =
+        (u8 *)std::malloc(size);
 
     if (out == NULL)
     {
-        printf(
-            "PBG3 Decompress: output malloc failed size=%u\n",
+        TH06WriteLog(
+            "[PBG3] Decompress output malloc failed "
+            "size=%u\n",
             size
         );
 
@@ -485,15 +669,14 @@ u8 *Pbg3Archive::ReadDecompressEntry(
 
     if (rawData == NULL)
     {
-        printf(
-            "PBG3 Decompress: ReadEntryRaw FAILED "
+        TH06WriteLog(
+            "[PBG3] Decompress ReadEntryRaw FAILED "
             "entry=%u filename=[%s]\n",
             entryIdx,
             filename != NULL ? filename : "(null)"
         );
 
-        free(out);
-        out = NULL;
+        std::free(out);
 
         return NULL;
     }
@@ -506,7 +689,6 @@ u8 *Pbg3Archive::ReadDecompressEntry(
 
     u8 dict[LZSS_DICTSIZE];
 
-    // Memset doesn't produce matching assembly
     for (i32 i = 0;
          i < LZSS_DICTSIZE;
          i++)
@@ -524,13 +706,11 @@ u8 *Pbg3Archive::ReadDecompressEntry(
     {
         DEC_READ_FLAG_BIT();
 
-        // Read literal byte from next 8 bits
         if (opcode != 0)
         {
             DEC_READ_BITS(8);
             DEC_WRITE_BYTE(inBits);
         }
-        // Copy from dictionary, 13 bit offset, then 4 bit length
         else
         {
             DEC_READ_BITS(13);
@@ -559,35 +739,34 @@ u8 *Pbg3Archive::ReadDecompressEntry(
         }
     }
 
-    // Skip past any remaining bits in the data
     while (inBitMask != 0x80)
     {
         DEC_READ_FLAG_BIT();
     }
 
-    free(rawData);
+    std::free(rawData);
 
-    if (this->entries[entryIdx].checksum != checksum)
+    if (
+        this->entries[entryIdx].checksum
+        != checksum
+    )
     {
-        printf(
-            "PBG3 Decompress: CHECKSUM FAILED "
+        TH06WriteLog(
+            "[PBG3] Decompress CHECKSUM FAILED "
             "filename=[%s] expected=%u actual=%u\n",
             filename != NULL ? filename : "(null)",
             this->entries[entryIdx].checksum,
             checksum
         );
 
-        if (out != NULL)
-        {
-            free(out);
-            out = NULL;
-        }
+        std::free(out);
 
         return NULL;
     }
 
-    printf(
-        "PBG3 Decompress: SUCCESS filename=[%s] size=%u checksum=%u\n",
+    TH06WriteLog(
+        "[PBG3] Decompress SUCCESS "
+        "filename=[%s] size=%u checksum=%u\n",
         filename != NULL ? filename : "(null)",
         this->entries[entryIdx].uncompressedSize,
         checksum
