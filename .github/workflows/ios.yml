@@ -9,123 +9,186 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout
+
+      # ============================================================
+      # Checkout
+      # ============================================================
+
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+
+      # ============================================================
+      # Check Xcode
+      # ============================================================
 
       - name: Check Xcode
         run: |
+          echo "===== Xcode ====="
           xcodebuild -version
-          xcrun --sdk iphoneos --show-sdk-path
-          xcrun --sdk iphoneos --show-sdk-version
 
-      - name: Download SDL
+          echo ""
+          echo "===== macOS ====="
+          sw_vers
+
+          echo ""
+          echo "===== iOS SDK ====="
+          xcrun --sdk iphoneos --show-sdk-path
+
+
+      # ============================================================
+      # Download SDL2
+      # ============================================================
+
+      - name: Download SDL2
         run: |
           set -e
 
           mkdir -p external
 
-          git clone --depth 1 --branch release-2.32.8 \
+          git clone --depth 1 \
+            --branch release-2.32.8 \
             https://github.com/libsdl-org/SDL.git \
             external/SDL
 
-          git clone --depth 1 --branch release-2.8.8 \
-            https://github.com/libsdl-org/SDL_image.git \
-            external/SDL_image
 
-          git clone --depth 1 --branch release-2.24.0 \
-            https://github.com/libsdl-org/SDL_ttf.git \
-            external/SDL_ttf
+      # ============================================================
+      # Download SDL2_image
+      # ============================================================
 
-      - name: Check SDL2 and SDL_ttf headers
+      - name: Download SDL2_image
         run: |
           set -e
 
-          echo "========================================"
-          echo "SDL headers"
-          echo "========================================"
+          git clone --depth 1 \
+            --branch release-2.8.8 \
+            https://github.com/libsdl-org/SDL_image.git \
+            external/SDL_image
 
-          find external/SDL/include \
-            -maxdepth 3 \
-            -type f \
-            -name "*.h" \
-            -print | sort
 
-          echo "========================================"
-          echo "SDL_image headers"
-          echo "========================================"
+      # ============================================================
+      # Download SDL2_ttf
+      # ============================================================
 
-          find external/SDL_image/include \
-            -maxdepth 3 \
-            -type f \
-            -name "*.h" \
-            -print | sort
+      - name: Download SDL2_ttf
+        run: |
+          set -e
 
-          echo "========================================"
-          echo "SDL_ttf headers"
-          echo "========================================"
+          git clone --depth 1 \
+            --branch release-2.24.0 \
+            https://github.com/libsdl-org/SDL_ttf.git \
+            external/SDL_ttf
 
-          find external/SDL_ttf/include \
-            -maxdepth 3 \
-            -type f \
-            -name "*.h" \
-            -print | sort
 
-          echo "========================================"
-          echo "Searching SDL_ttf.h everywhere"
-          echo "========================================"
+      # ============================================================
+      # Check downloaded libraries
+      # ============================================================
 
-          find external/SDL_ttf \
-            -type f \
-            -name "SDL_ttf.h" \
-            -print
+      - name: Check SDL libraries
+        run: |
+          set -e
 
-      - name: Download SDL_image dependencies
+          echo "===== external ====="
+          find external -maxdepth 2 -type f | head -100
+
+          echo ""
+          echo "===== SDL2 ====="
+          test -d external/SDL
+          test -f external/SDL/include/SDL.h
+          echo "SDL2 OK"
+
+          echo ""
+          echo "===== SDL2_image ====="
+          test -d external/SDL_image
+          test -f external/SDL_image/include/SDL_image.h
+          echo "SDL2_image OK"
+
+          echo ""
+          echo "===== SDL2_ttf ====="
+          test -d external/SDL_ttf
+          test -f external/SDL_ttf/SDL_ttf.h
+          echo "SDL2_ttf OK"
+
+          echo ""
+          echo "SDL_ttf.h location:"
+          find external/SDL_ttf -type f -name "SDL_ttf.h"
+
+
+      # ============================================================
+      # Download SDL2_image dependencies
+      # ============================================================
+
+      - name: Download SDL2_image dependencies
         run: |
           set -e
 
           cd external/SDL_image
 
-          chmod +x external/download.sh
-          ./external/download.sh
-
-          cd ../..
-
-          echo "Checking SDL_image dependencies..."
-          find external/SDL_image/external \
-            -maxdepth 3 \
-            -type d \
-            -print || true
-
-      - name: Check libtiff
-        run: |
-          set -e
-
-          TIFF_DIR="$(find external -type d -iname 'libtiff' | head -n 1 || true)"
-
-          if [ -z "$TIFF_DIR" ]; then
-            echo "ERROR: libtiff not found"
-            find external -maxdepth 5 -print | head -500
-            exit 1
+          if [ -f external/download.sh ]; then
+            chmod +x external/download.sh
+            ./external/download.sh
+          else
+            echo "SDL_image download.sh not found"
           fi
 
-          echo "Found libtiff:"
-          echo "$TIFF_DIR"
 
-          if [ ! -f "$TIFF_DIR/CMakeLists.txt" ]; then
-            echo "ERROR: libtiff CMakeLists.txt not found"
-            exit 1
-          fi
+      # ============================================================
+      # Download SDL2_ttf dependencies
+      # ============================================================
 
-      - name: Download SDL_ttf dependencies
+      - name: Download SDL2_ttf dependencies
         run: |
           set -e
 
           cd external/SDL_ttf
 
-          chmod +x external/download.sh
-          ./external/download.sh
+          if [ -f external/download.sh ]; then
+            chmod +x external/download.sh
+            ./external/download.sh
+          else
+            echo "SDL_ttf download.sh not found"
+          fi
 
-          cd ../..
+
+      # ============================================================
+      # Check FreeType
+      # ============================================================
+
+      - name: Check FreeType
+        run: |
+          echo "===== FreeType ====="
+
+          find external/SDL_ttf \
+            -type f \
+            -name "ft2build.h" \
+            -print
+
+          echo ""
+
+          if find external/SDL_ttf \
+            -type f \
+            -name "ft2build.h" \
+            | grep -q .; then
+            echo "FreeType headers found"
+          else
+            echo "WARNING: FreeType headers not found"
+          fi
+
+
+      # ============================================================
+      # Create unified SDL2 include directory
+      #
+      # This fixes:
+      #
+      # fatal error:
+      # 'SDL2/SDL_ttf.h' file not found
+      #
+      # Actual SDL_ttf.h:
+      # external/SDL_ttf/SDL_ttf.h
+      #
+      # Target:
+      # include/SDL2/SDL_ttf.h
+      # ============================================================
 
       - name: Create unified SDL2 include directory
         run: |
@@ -134,99 +197,98 @@ jobs:
           rm -rf include
           mkdir -p include/SDL2
 
-          echo "========================================"
-          echo "Copy SDL2 headers"
-          echo "========================================"
+          echo "===== Copy SDL2 headers ====="
 
-          if [ -d external/SDL/include ]; then
-            cp -f external/SDL/include/*.h include/SDL2/
-          else
-            echo "ERROR: SDL include directory not found"
-            exit 1
-          fi
+          cp -f external/SDL/include/*.h \
+            include/SDL2/
 
-          echo "========================================"
-          echo "Copy SDL_image header"
-          echo "========================================"
+          echo "===== Copy SDL2_image header ====="
 
           if [ -f external/SDL_image/include/SDL_image.h ]; then
-            cp -f external/SDL_image/include/SDL_image.h include/SDL2/
+            cp -f external/SDL_image/include/SDL_image.h \
+              include/SDL2/SDL_image.h
           else
-            echo "WARNING: SDL_image.h not found"
-          fi
-
-          echo "========================================"
-          echo "Copy SDL_ttf header"
-          echo "========================================"
-
-          TTF_HEADER="$(find external/SDL_ttf/include \
-            -type f \
-            -name "SDL_ttf.h" \
-            | head -n 1 || true)"
-
-          if [ -z "$TTF_HEADER" ]; then
-            echo "ERROR: SDL_ttf.h not found"
-
-            echo "SDL_ttf directory:"
-            find external/SDL_ttf \
-              -maxdepth 5 \
-              -type f \
-              -print | head -300
-
+            echo "ERROR: SDL_image.h not found"
             exit 1
           fi
 
-          echo "Found:"
-          echo "$TTF_HEADER"
+          echo "===== Copy SDL2_ttf header ====="
 
-          cp -f "$TTF_HEADER" include/SDL2/SDL_ttf.h
+          if [ -f external/SDL_ttf/SDL_ttf.h ]; then
+            cp -f external/SDL_ttf/SDL_ttf.h \
+              include/SDL2/SDL_ttf.h
+          else
+            echo "ERROR: SDL_ttf.h not found"
+            exit 1
+          fi
 
-          echo "========================================"
-          echo "Unified SDL2 Headers"
-          echo "========================================"
+          echo ""
+          echo "===== Unified headers ====="
 
           ls -la include/SDL2
 
-          echo "========================================"
-          echo "Checking required header"
-          echo "========================================"
+          echo ""
+          echo "===== Required headers ====="
 
           test -f include/SDL2/SDL.h
+          test -f include/SDL2/SDL_image.h
           test -f include/SDL2/SDL_ttf.h
 
-          echo "SDL2/SDL.h       OK"
-          echo "SDL2/SDL_ttf.h   OK"
+          echo ""
+          echo "All SDL2 headers OK"
 
-      - name: Check FreeType
-        run: |
-          set -e
 
-          if find external/SDL_ttf \
-            -type f \
-            -name "ft2build.h" \
-            | grep -q .; then
-
-            echo "FreeType OK"
-
-          else
-
-            echo "ERROR: FreeType not found"
-            exit 1
-
-          fi
+      # ============================================================
+      # Check project files
+      # ============================================================
 
       - name: Check project
         run: |
           set -e
 
-          echo "===== Root ====="
+          echo "===== Project ====="
           ls -la
 
-          echo "===== src ====="
-          find src \
-            -maxdepth 4 \
-            -type f \
-            | head -200
+          echo ""
+          echo "===== Source ====="
+          find src -type f | head -100
+
+          echo ""
+          echo "===== Required files ====="
+
+          test -f CMakeLists.txt
+          test -f embed_shaders.cmake
+
+          echo "CMakeLists.txt OK"
+          echo "embed_shaders.cmake OK"
+
+
+      # ============================================================
+      # Check shader files
+      # ============================================================
+
+      - name: Check shaders
+        run: |
+          set -e
+
+          echo "===== Shader files ====="
+
+          if [ -f src/graphics/ff.vert ]; then
+            echo "ff.vert found"
+          else
+            echo "WARNING: ff.vert not found"
+          fi
+
+          if [ -f src/graphics/ff.frag ]; then
+            echo "ff.frag found"
+          else
+            echo "WARNING: ff.frag not found"
+          fi
+
+
+      # ============================================================
+      # Configure CMake
+      # ============================================================
 
       - name: Configure iOS ARM64
         run: |
@@ -243,208 +305,207 @@ jobs:
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_XCODE_ATTRIBUTE_HEADER_SEARCH_PATHS="\$(SRCROOT)/include" \
-            -DSDL_TESTS=OFF \
-            -DSDL_TEST_LIBRARY=OFF \
+            -DCMAKE_XCODE_ATTRIBUTE_HEADER_SEARCH_PATHS='$(SRCROOT)/include' \
+            -DBUILD_SHARED_LIBS=OFF \
             -DSDL_SHARED=OFF \
             -DSDL_STATIC=ON \
+            -DSDL_TESTS=OFF \
+            -DSDL_TEST_LIBRARY=OFF \
             -DSDL2_SHARED=OFF \
-            -DSDL2IMAGE_VENDORED=ON \
+            -DSDL2_STATIC=ON \
             -DSDL2IMAGE_SAMPLES=OFF \
             -DSDL2IMAGE_TESTS=OFF \
+            -DSDL2IMAGE_VENDORED=ON \
+            -DSDL2IMAGE_SHARED=OFF \
             -DSDL2IMAGE_AVIF=OFF \
             -DSDL2IMAGE_WEBP=OFF \
             -DSDL2IMAGE_JXL=OFF \
-            -DSDL2TTF_VENDORED=ON \
             -DSDL2TTF_SAMPLES=OFF \
-            -DSDL2TTF_TESTS=OFF
+            -DSDL2TTF_TESTS=OFF \
+            -DSDL2TTF_VENDORED=ON
 
-      - name: Verify CMake SDL_ttf configuration
+          echo ""
+          echo "===== CMake configuration completed ====="
+
+
+      # ============================================================
+      # Check generated Xcode project
+      # ============================================================
+
+      - name: Check Xcode project
         run: |
           set -e
 
-          echo "========================================"
-          echo "Searching generated build files"
-          echo "========================================"
+          echo "===== Build directory ====="
+          find build -maxdepth 2 -type f | head -100
 
-          find build \
-            -type f \
-            \( -name "*.cmake" -o -name "*.xcodeproj" \) \
-            -print | head -100
+          echo ""
+          echo "===== Xcode projects ====="
+          find build -name "*.xcodeproj" -print
 
-          echo "========================================"
-          echo "Checking SDL_ttf.h"
-          echo "========================================"
 
-          test -f include/SDL2/SDL_ttf.h
+      # ============================================================
+      # Build
+      # ============================================================
 
-          echo "SDL2/SDL_ttf.h is available."
-
-      - name: Build iOS ARM64
+      - name: Build iOS
         run: |
           set -e
 
-          cmake --build build \
+          cmake \
+            --build build \
             --config Release \
-            --parallel 4
+            -- -sdk iphoneos \
+               ARCHS=arm64 \
+               CODE_SIGNING_ALLOWED=NO \
+               CODE_SIGNING_REQUIRED=NO \
+               CODE_SIGN_IDENTITY=""
 
-      - name: Find app
+
+      # ============================================================
+      # Find application
+      # ============================================================
+
+      - name: Find application
         run: |
           set -e
 
-          echo "Searching for app..."
+          echo "===== Searching for .app ====="
 
           find build \
             -type d \
             -name "*.app" \
             -print
 
-          APP="$(find build \
-            -type d \
-            -name 'th06.app' \
-            | head -n 1)"
 
-          if [ -z "$APP" ]; then
-            echo "ERROR: th06.app not found"
-            exit 1
-          fi
-
-          echo "APP=$APP"
+      # ============================================================
+      # Verify ARM64 binary
+      # ============================================================
 
       - name: Verify ARM64 iOS binary
         run: |
           set -e
 
-          APP="$(find build \
+          APP_PATH=$(find build \
             -type d \
-            -name 'th06.app' \
-            | head -n 1)"
+            -name "*.app" \
+            | head -1)
 
-          BIN="$APP/th06"
-
-          if [ ! -f "$BIN" ]; then
-            echo "ERROR: executable not found"
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: .app not found"
             exit 1
           fi
 
+          echo "APP:"
+          echo "$APP_PATH"
+
+          EXECUTABLE=$(defaults read "$APP_PATH/Info.plist" CFBundleExecutable)
+
+          echo ""
+          echo "Executable:"
+          echo "$EXECUTABLE"
+
+          BINARY="$APP_PATH/$EXECUTABLE"
+
+          echo ""
           echo "===== file ====="
-          file "$BIN"
+          file "$BINARY"
 
-          echo "===== lipo ====="
-          lipo -info "$BIN"
+          echo ""
+          echo "===== Architectures ====="
+          lipo -info "$BINARY"
 
-          echo "===== platform ====="
-          otool -l "$BIN" | \
-            grep -A8 LC_BUILD_VERSION || true
+          echo ""
+          echo "===== SDK ====="
+          otool -l "$BINARY" \
+            | grep -A4 LC_BUILD_VERSION \
+            | head -20 || true
 
-          echo "Checking ARM64..."
 
-          lipo -info "$BIN" | grep -q arm64
-
-          echo "ARM64 OK"
-
-          echo "Checking iOS platform..."
-
-          if otool -l "$BIN" | \
-            grep -A8 LC_BUILD_VERSION | \
-            grep -q PLATFORM_IOS; then
-
-            echo "iOS platform OK"
-
-          else
-
-            echo "WARNING: PLATFORM_IOS was not detected"
-
-          fi
+      # ============================================================
+      # Package resources
+      # ============================================================
 
       - name: Package resources
         run: |
           set -e
 
-          APP="$(find build \
+          APP_PATH=$(find build \
             -type d \
-            -name 'th06.app' \
-            | head -n 1)"
+            -name "*.app" \
+            | head -1)
 
-          if [ -d resources ]; then
-            echo "Copying resources..."
-            cp -R resources "$APP/"
-          else
-            echo "No resources directory."
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: .app not found"
+            exit 1
           fi
 
-          echo "===== APP CONTENT ====="
-          find "$APP" \
-            -maxdepth 4 \
-            -print
+          echo "App path:"
+          echo "$APP_PATH"
+
+          if [ -d resources ]; then
+            echo ""
+            echo "===== Copy resources ====="
+
+            cp -R resources/. "$APP_PATH/"
+          else
+            echo "No resources directory found"
+          fi
+
+
+      # ============================================================
+      # Create Info.plist
+      # ============================================================
 
       - name: Create Info.plist
         run: |
           set -e
 
-          APP="$(find build \
+          APP_PATH=$(find build \
             -type d \
-            -name 'th06.app' \
-            | head -n 1)"
+            -name "*.app" \
+            | head -1)
 
-          PLIST="$APP/Info.plist"
-
-          rm -f "$PLIST"
-
-          /usr/libexec/PlistBuddy \
-            -c "Add :CFBundleExecutable string th06" \
-            "$PLIST"
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: .app not found"
+            exit 1
+          fi
 
           /usr/libexec/PlistBuddy \
-            -c "Add :CFBundleIdentifier string com.example.th06" \
-            "$PLIST"
+            -c "Set :CFBundleDisplayName 東方紅魔郷" \
+            "$APP_PATH/Info.plist" || true
 
           /usr/libexec/PlistBuddy \
-            -c "Add :CFBundleName string th06" \
-            "$PLIST"
+            -c "Set :CFBundleIdentifier com.example.th06" \
+            "$APP_PATH/Info.plist" || true
 
           /usr/libexec/PlistBuddy \
-            -c "Add :CFBundleDisplayName string 東方紅魔郷" \
-            "$PLIST"
+            -c "Set :CFBundlePackageType APPL" \
+            "$APP_PATH/Info.plist" || true
 
           /usr/libexec/PlistBuddy \
-            -c "Add :CFBundlePackageType string APPL" \
-            "$PLIST"
+            -c "Set :LSRequiresIPhoneOS true" \
+            "$APP_PATH/Info.plist" || true
 
-          /usr/libexec/PlistBuddy \
-            -c "Add :CFBundleShortVersionString string 1.0" \
-            "$PLIST"
+          echo "Info.plist:"
+          plutil -p "$APP_PATH/Info.plist"
 
-          /usr/libexec/PlistBuddy \
-            -c "Add :CFBundleVersion string 1" \
-            "$PLIST"
 
-          /usr/libexec/PlistBuddy \
-            -c "Add :LSRequiresIPhoneOS bool true" \
-            "$PLIST"
-
-          /usr/libexec/PlistBuddy \
-            -c "Add :UIDeviceFamily array" \
-            "$PLIST"
-
-          /usr/libexec/PlistBuddy \
-            -c "Add :UIDeviceFamily:0 integer 1" \
-            "$PLIST"
-
-          echo "===== Info.plist ====="
-          plutil -p "$PLIST"
+      # ============================================================
+      # Create IPA
+      # ============================================================
 
       - name: Create IPA
         run: |
           set -e
 
-          APP="$(find build \
+          APP_PATH=$(find build \
             -type d \
-            -name 'th06.app' \
-            | head -n 1)"
+            -name "*.app" \
+            | head -1)
 
-          if [ -z "$APP" ]; then
-            echo "ERROR: th06.app not found"
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: .app not found"
             exit 1
           fi
 
@@ -453,36 +514,42 @@ jobs:
 
           mkdir -p Payload
 
-          cp -R "$APP" Payload/th06.app
+          cp -R "$APP_PATH" Payload/
 
           echo "===== Payload ====="
-          find Payload \
-            -maxdepth 4 \
-            -print
+          find Payload -maxdepth 2 -print
 
-          cd Payload
+          zip -r th06.ipa Payload
 
-          zip -r ../th06.ipa th06.app
-
-          cd ..
-
+          echo ""
           echo "===== IPA ====="
           ls -lh th06.ipa
+
+
+      # ============================================================
+      # Verify IPA
+      # ============================================================
 
       - name: Verify IPA
         run: |
           set -e
 
-          if [ ! -f th06.ipa ]; then
-            echo "ERROR: IPA was not created"
-            exit 1
-          fi
+          test -f th06.ipa
 
-          unzip -l th06.ipa | head -150
+          echo "===== IPA information ====="
+          unzip -l th06.ipa
+
+          echo ""
+          echo "IPA created successfully"
+
+
+      # ============================================================
+      # Upload IPA
+      # ============================================================
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: th06-ios-arm64-unsigned
+          name: th06-ios-ipa
           path: th06.ipa
           if-no-files-found: error
