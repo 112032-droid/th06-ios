@@ -85,6 +85,36 @@ file(GLOB_RECURSE TH06_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
 
+
+# ============================================================
+# iOS source filtering
+#
+# MidiWin32.cpp 使用 Windows 專用的 mmsystem.h
+# iOS / Xcode 沒有這個 Windows header。
+#
+# 因此 iOS 編譯時排除 MidiWin32.cpp。
+# ============================================================
+
+if(IOS)
+
+    message(STATUS "========================================")
+    message(STATUS "iOS source filtering")
+    message(STATUS "========================================")
+
+    list(FILTER TH06_SOURCES EXCLUDE REGEX
+        ".*/MidiWin32\\.cpp$"
+    )
+
+    message(STATUS "Excluded Windows MIDI backend:")
+    message(STATUS "  src/midi/MidiWin32.cpp")
+
+endif()
+
+
+# ============================================================
+# Display source files
+# ============================================================
+
 message(STATUS "========================================")
 message(STATUS "Found th06 source files:")
 message(STATUS "========================================")
