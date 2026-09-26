@@ -76,27 +76,56 @@ GLuint createShader(const char *source, GLenum type, const char *descString, boo
 
     fullShaderSource[shaderSourceIndex] = source;
 
-    g_glFuncTable.glShaderSource(shaderHandle, shaderSourceIndex + 1, fullShaderSource, NULL);
+    g_glFuncTable.glShaderSource(
+        shaderHandle,
+        shaderSourceIndex + 1,
+        fullShaderSource,
+        NULL
+    );
+
     g_glFuncTable.glCompileShader(shaderHandle);
 
-    g_glFuncTable.glGetShaderiv(shaderHandle, GL_COMPILE_STATUS, &getRet);
+    g_glFuncTable.glGetShaderiv(
+        shaderHandle,
+        GL_COMPILE_STATUS,
+        &getRet
+    );
 
     if (getRet)
     {
         return shaderHandle;
     }
 
-    g_glFuncTable.glGetShaderiv(shaderHandle, GL_INFO_LOG_LENGTH, &getRet);
+    g_glFuncTable.glGetShaderiv(
+        shaderHandle,
+        GL_INFO_LOG_LENGTH,
+        &getRet
+    );
 
     if (getRet == 0)
     {
-        utils::DebugPrint("Shader %s compilation failed and has no log!\n", descString);
+        utils::DebugPrint(
+            "Shader %s compilation failed and has no log!\n",
+            descString
+        );
     }
     else
     {
         char *log = new char[getRet];
-        g_glFuncTable.glGetShaderInfoLog(shaderHandle, getRet, NULL, log);
-        utils::DebugPrint("Shader %s compilation failed, log: \n%s", descString, log);
+
+        g_glFuncTable.glGetShaderInfoLog(
+            shaderHandle,
+            getRet,
+            NULL,
+            log
+        );
+
+        utils::DebugPrint(
+            "Shader %s compilation failed, log: \n%s",
+            descString,
+            log
+        );
+
         delete[] log;
     }
 
@@ -110,24 +139,46 @@ bool linkProgram(GLuint programHandle)
 
     GLint getRet;
 
-    g_glFuncTable.glGetProgramiv(programHandle, GL_LINK_STATUS, &getRet);
+    g_glFuncTable.glGetProgramiv(
+        programHandle,
+        GL_LINK_STATUS,
+        &getRet
+    );
 
     if (getRet)
     {
         return true;
     }
 
-    g_glFuncTable.glGetProgramiv(programHandle, GL_INFO_LOG_LENGTH, &getRet);
+    g_glFuncTable.glGetProgramiv(
+        programHandle,
+        GL_INFO_LOG_LENGTH,
+        &getRet
+    );
 
     if (getRet == 0)
     {
-        utils::DebugPrint("Program link failed and has no log!");
+        utils::DebugPrint(
+            "Program link failed and has no log!"
+        );
+
         return false;
     }
 
     char *log = new char[getRet];
-    g_glFuncTable.glGetProgramInfoLog(programHandle, getRet, NULL, log);
-    utils::DebugPrint("Program link failed, log: \n%s", log);
+
+    g_glFuncTable.glGetProgramInfoLog(
+        programHandle,
+        getRet,
+        NULL,
+        log
+    );
+
+    utils::DebugPrint(
+        "Program link failed, log: \n%s",
+        log
+    );
+
     delete[] log;
 
     return false;
@@ -135,9 +186,20 @@ bool linkProgram(GLuint programHandle)
 
 void WebGL::SetContextFlags()
 {
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(
+        SDL_GL_CONTEXT_MAJOR_VERSION,
+        2
+    );
+
+    SDL_GL_SetAttribute(
+        SDL_GL_CONTEXT_MINOR_VERSION,
+        0
+    );
+
+    SDL_GL_SetAttribute(
+        SDL_GL_CONTEXT_PROFILE_MASK,
+        SDL_GL_CONTEXT_PROFILE_ES
+    );
 }
 
 GfxInterface *WebGL::Create()
@@ -159,8 +221,17 @@ GfxInterface *WebGL::Create()
         flags |= SDL_WINDOW_FULLSCREEN;
     }
 
-    SDL_Window *window = SDL_CreateWindow(TH_WINDOW_TITLE, x, y, width, height, flags);
+    SDL_Window *window = SDL_CreateWindow(
+        TH_WINDOW_TITLE,
+        x,
+        y,
+        width,
+        height,
+        flags
+    );
+
     interface->window = window;
+
     if (window == NULL)
     {
         delete interface;
@@ -168,7 +239,9 @@ GfxInterface *WebGL::Create()
     }
 
     SDL_GLContext glContext = SDL_GL_CreateContext(window);
+
     interface->glContext = glContext;
+
     if (glContext == NULL)
     {
         delete interface;
@@ -186,14 +259,27 @@ GfxInterface *WebGL::Create()
     // The ES profile request is not always honored,
     // so check if we really got it or the desktop one.
     const GLubyte *(GLAPIENTRY * getString)(GLenum) =
-        (const GLubyte *(GLAPIENTRY *)(GLenum))SDL_GL_GetProcAddress("glGetString");
-    const char *glVersion = getString != NULL ? (const char *)getString(GL_VERSION) : NULL;
-    interface->glesContext = glVersion != NULL && std::strncmp(glVersion, "OpenGL ES", 9) == 0;
+        (const GLubyte *(GLAPIENTRY *)(GLenum))
+        SDL_GL_GetProcAddress("glGetString");
 
-    utils::DebugPrint("Got a %s context (GL_VERSION: %s)\n", interface->glesContext ? "GL ES" : "desktop GL",
-                      glVersion != NULL ? glVersion : "unknown");
+    const char *glVersion =
+        getString != NULL
+            ? (const char *)getString(GL_VERSION)
+            : NULL;
 
-    g_glFuncTable.ResolveFunctions(interface->glesContext);
+    interface->glesContext =
+        glVersion != NULL &&
+        std::strncmp(glVersion, "OpenGL ES", 9) == 0;
+
+    utils::DebugPrint(
+        "Got a %s context (GL_VERSION: %s)\n",
+        interface->glesContext ? "GL ES" : "desktop GL",
+        glVersion != NULL ? glVersion : "unknown"
+    );
+
+    g_glFuncTable.ResolveFunctions(
+        interface->glesContext
+    );
 
     if (!interface->Init())
     {
@@ -211,6 +297,7 @@ void WebGL::Exit()
         SDL_GL_DeleteContext(this->glContext);
         this->glContext = NULL;
     }
+
     if (this->window)
     {
         SDL_DestroyWindow(this->window);
@@ -228,86 +315,238 @@ bool WebGL::Init()
     }
 
     // Using a hashset for this is definitely super overkill, but it still feels more right
-    //   than just using a vector or C array
+    // than just using a vector or C array
 
+    // FIX:
+    // Embeds.hpp generates unsigned char arrays.
+    // createShader() expects const char *.
+    // Explicitly convert the shader byte arrays here.
     this->vertexShaderHandle =
-        createShader(vertShaderBytes, GL_VERTEX_SHADER, "vertex", this->glesContext, omittedUniforms);
-    this->fragmentShaderHandle =
-        createShader(fragShaderBytes, GL_FRAGMENT_SHADER, "fragment", this->glesContext, omittedUniforms);
-    this->programHandle = g_glFuncTable.glCreateProgram();
+        createShader(
+            reinterpret_cast<const char *>(vertShaderBytes),
+            GL_VERTEX_SHADER,
+            "vertex",
+            this->glesContext,
+            omittedUniforms
+        );
 
-    if (this->vertexShaderHandle == 0 || this->fragmentShaderHandle == 0 || this->programHandle == 0)
+    this->fragmentShaderHandle =
+        createShader(
+            reinterpret_cast<const char *>(fragShaderBytes),
+            GL_FRAGMENT_SHADER,
+            "fragment",
+            this->glesContext,
+            omittedUniforms
+        );
+
+    this->programHandle =
+        g_glFuncTable.glCreateProgram();
+
+    if (this->vertexShaderHandle == 0 ||
+        this->fragmentShaderHandle == 0 ||
+        this->programHandle == 0)
     {
         goto fail;
     }
 
-    g_glFuncTable.glAttachShader(this->programHandle, this->vertexShaderHandle);
-    g_glFuncTable.glAttachShader(this->programHandle, this->fragmentShaderHandle);
+    g_glFuncTable.glAttachShader(
+        this->programHandle,
+        this->vertexShaderHandle
+    );
 
-    g_glFuncTable.glBindAttribLocation(this->programHandle, POSITION_ATTRIBUTE_INDEX, "position");
-    g_glFuncTable.glBindAttribLocation(this->programHandle, TEX_COORDS_ATTRIBUTE_INDEX, "texCoords");
-    g_glFuncTable.glBindAttribLocation(this->programHandle, DIFFUSE_ATTRIBUTE_INDEX, "diffuse");
+    g_glFuncTable.glAttachShader(
+        this->programHandle,
+        this->fragmentShaderHandle
+    );
+
+    g_glFuncTable.glBindAttribLocation(
+        this->programHandle,
+        POSITION_ATTRIBUTE_INDEX,
+        "position"
+    );
+
+    g_glFuncTable.glBindAttribLocation(
+        this->programHandle,
+        TEX_COORDS_ATTRIBUTE_INDEX,
+        "texCoords"
+    );
+
+    g_glFuncTable.glBindAttribLocation(
+        this->programHandle,
+        DIFFUSE_ATTRIBUTE_INDEX,
+        "diffuse"
+    );
 
     if (!linkProgram(this->programHandle))
     {
         goto fail;
     }
 
-    g_glFuncTable.glUseProgram(this->programHandle);
+    g_glFuncTable.glUseProgram(
+        this->programHandle
+    );
 
-    this->uniforms[UNIFORM_MODELVIEW] = g_glFuncTable.glGetUniformLocation(programHandle, "modelviewMatrix");
-    this->uniforms[UNIFORM_PROJECTION] = g_glFuncTable.glGetUniformLocation(programHandle, "projectionMatrix");
-    this->uniforms[UNIFORM_TEXTURE_MATRIX] = g_glFuncTable.glGetUniformLocation(programHandle, "textureMatrix");
+    this->uniforms[UNIFORM_MODELVIEW] =
+        g_glFuncTable.glGetUniformLocation(
+            programHandle,
+            "modelviewMatrix"
+        );
 
-    this->uniforms[UNIFORM_ENV_DIFFUSE] = g_glFuncTable.glGetUniformLocation(programHandle, "envDiffuse");
-    this->uniforms[UNIFORM_TEX_COORD_FLAG] = g_glFuncTable.glGetUniformLocation(programHandle, "useTexCoords");
-    this->uniforms[UNIFORM_DIFFUSE_FLAG] = g_glFuncTable.glGetUniformLocation(programHandle, "useDiffuse");
-    this->uniforms[UNIFORM_TEXTURE_SAMPLER] = g_glFuncTable.glGetUniformLocation(programHandle, "tex");
-    this->uniforms[UNIFORM_FOG_NEAR] = g_glFuncTable.glGetUniformLocation(programHandle, "fogNear");
-    this->uniforms[UNIFORM_FOG_FAR] = g_glFuncTable.glGetUniformLocation(programHandle, "fogFar");
-    this->uniforms[UNIFORM_FOG_COLOR] = g_glFuncTable.glGetUniformLocation(programHandle, "fogColor");
-    this->uniforms[UNIFORM_COLOR_OP] = g_glFuncTable.glGetUniformLocation(programHandle, "colorOp");
+    this->uniforms[UNIFORM_PROJECTION] =
+        g_glFuncTable.glGetUniformLocation(
+            programHandle,
+            "projectionMatrix"
+        );
+
+    this->uniforms[UNIFORM_TEXTURE_MATRIX] =
+        g_glFuncTable.glGetUniformLocation(
+            programHandle,
+            "textureMatrix"
+        );
+
+    this->uniforms[UNIFORM_ENV_DIFFUSE] =
+        g_glFuncTable.glGetUniformLocation(
+            programHandle,
+            "envDiffuse"
+        );
+
+    this->uniforms[UNIFORM_TEX_COORD_FLAG] =
+        g_glFuncTable.glGetUniformLocation(
+            programHandle,
+            "useTexCoords"
+        );
+
+    this->uniforms[UNIFORM_DIFFUSE_FLAG] =
+        g_glFuncTable.glGetUniformLocation(
+            programHandle,
+            "useDiffuse"
+        );
+
+    this->uniforms[UNIFORM_TEXTURE_SAMPLER] =
+        g_glFuncTable.glGetUniformLocation(
+            programHandle,
+            "tex"
+        );
+
+    this->uniforms[UNIFORM_FOG_NEAR] =
+        g_glFuncTable.glGetUniformLocation(
+            programHandle,
+            "fogNear"
+        );
+
+    this->uniforms[UNIFORM_FOG_FAR] =
+        g_glFuncTable.glGetUniformLocation(
+            programHandle,
+            "fogFar"
+        );
+
+    this->uniforms[UNIFORM_FOG_COLOR] =
+        g_glFuncTable.glGetUniformLocation(
+            programHandle,
+            "fogColor"
+        );
+
+    this->uniforms[UNIFORM_COLOR_OP] =
+        g_glFuncTable.glGetUniformLocation(
+            programHandle,
+            "colorOp"
+        );
 
     for (u32 i = 0; i < ARRAY_SIZE(this->uniforms); i++)
     {
-        if (this->uniforms[i] == -1 && omittedUniforms.count((GlShaderUniform)i) != 0)
+        if (this->uniforms[i] == -1 &&
+            omittedUniforms.count((GlShaderUniform)i) != 0)
         {
-            utils::DebugPrint("Get uniform %i location failed!", i);
+            utils::DebugPrint(
+                "Get uniform %i location failed!",
+                i
+            );
         }
     }
 
-    // Use texture unit 0 (aka the only one we ever use)
-    g_glFuncTable.glUniform1i(this->uniforms[UNIFORM_TEXTURE_SAMPLER], 0);
+    // Use texture unit 0
+    g_glFuncTable.glUniform1i(
+        this->uniforms[UNIFORM_TEXTURE_SAMPLER],
+        0
+    );
 
     identityMatrix.Identity();
-    g_glFuncTable.glUniformMatrix4fv(this->uniforms[UNIFORM_MODELVIEW], 1, false, (GLfloat *)&identityMatrix.m);
-    g_glFuncTable.glUniformMatrix4fv(this->uniforms[UNIFORM_PROJECTION], 1, false, (GLfloat *)&identityMatrix.m);
-    g_glFuncTable.glUniformMatrix4fv(this->uniforms[UNIFORM_TEXTURE_MATRIX], 1, false, (GLfloat *)&identityMatrix.m);
 
-    g_glFuncTable.glUniform1f(this->uniforms[UNIFORM_FOG_FAR], 1.0f);
+    g_glFuncTable.glUniformMatrix4fv(
+        this->uniforms[UNIFORM_MODELVIEW],
+        1,
+        false,
+        (GLfloat *)&identityMatrix.m
+    );
 
-    g_glFuncTable.glEnableVertexAttribArray(POSITION_ATTRIBUTE_INDEX);
+    g_glFuncTable.glUniformMatrix4fv(
+        this->uniforms[UNIFORM_PROJECTION],
+        1,
+        false,
+        (GLfloat *)&identityMatrix.m
+    );
+
+    g_glFuncTable.glUniformMatrix4fv(
+        this->uniforms[UNIFORM_TEXTURE_MATRIX],
+        1,
+        false,
+        (GLfloat *)&identityMatrix.m
+    );
+
+    g_glFuncTable.glUniform1f(
+        this->uniforms[UNIFORM_FOG_FAR],
+        1.0f
+    );
+
+    g_glFuncTable.glEnableVertexAttribArray(
+        POSITION_ATTRIBUTE_INDEX
+    );
 
     return true;
+
 fail:
-    utils::DebugPrint("GL error: %X\n", g_glFuncTable.glGetError());
-    g_glFuncTable.glDeleteProgram(this->programHandle);
-    g_glFuncTable.glDeleteShader(this->vertexShaderHandle);
-    g_glFuncTable.glDeleteShader(this->fragmentShaderHandle);
+    utils::DebugPrint(
+        "GL error: %X\n",
+        g_glFuncTable.glGetError()
+    );
+
+    g_glFuncTable.glDeleteProgram(
+        this->programHandle
+    );
+
+    g_glFuncTable.glDeleteShader(
+        this->vertexShaderHandle
+    );
+
+    g_glFuncTable.glDeleteShader(
+        this->fragmentShaderHandle
+    );
 
     return false;
 }
 
 void WebGL::SetFogRange(f32 nearPlane, f32 farPlane)
 {
-    g_glFuncTable.glUniform1f(this->uniforms[UNIFORM_FOG_NEAR], nearPlane);
-    g_glFuncTable.glUniform1f(this->uniforms[UNIFORM_FOG_FAR], farPlane);
+    g_glFuncTable.glUniform1f(
+        this->uniforms[UNIFORM_FOG_NEAR],
+        nearPlane
+    );
+
+    g_glFuncTable.glUniform1f(
+        this->uniforms[UNIFORM_FOG_FAR],
+        farPlane
+    );
 }
 
 void WebGL::SetFogColor(ZunColor color)
 {
-    g_glFuncTable.glUniform4f(this->uniforms[UNIFORM_FOG_COLOR], ((color >> 16) & 0xFF) / 255.0f,
-                              ((color >> 8) & 0xFF) / 255.0f, (color & 0xFF) / 255.0f, ((color >> 24) & 0xFF) / 255.0f);
+    g_glFuncTable.glUniform4f(
+        this->uniforms[UNIFORM_FOG_COLOR],
+        ((color >> 16) & 0xFF) / 255.0f,
+        ((color >> 8) & 0xFF) / 255.0f,
+        (color & 0xFF) / 255.0f,
+        ((color >> 24) & 0xFF) / 255.0f
+    );
 }
 
 void WebGL::ToggleVertexAttribute(u8 attr, bool enable)
@@ -316,13 +555,25 @@ void WebGL::ToggleVertexAttribute(u8 attr, bool enable)
     {
         if (enable)
         {
-            g_glFuncTable.glEnableVertexAttribArray(TEX_COORDS_ATTRIBUTE_INDEX);
-            g_glFuncTable.glUniform1i(this->uniforms[UNIFORM_TEX_COORD_FLAG], true);
+            g_glFuncTable.glEnableVertexAttribArray(
+                TEX_COORDS_ATTRIBUTE_INDEX
+            );
+
+            g_glFuncTable.glUniform1i(
+                this->uniforms[UNIFORM_TEX_COORD_FLAG],
+                true
+            );
         }
         else
         {
-            g_glFuncTable.glDisableVertexAttribArray(TEX_COORDS_ATTRIBUTE_INDEX);
-            g_glFuncTable.glUniform1i(this->uniforms[UNIFORM_TEX_COORD_FLAG], false);
+            g_glFuncTable.glDisableVertexAttribArray(
+                TEX_COORDS_ATTRIBUTE_INDEX
+            );
+
+            g_glFuncTable.glUniform1i(
+                this->uniforms[UNIFORM_TEX_COORD_FLAG],
+                false
+            );
         }
     }
 
@@ -330,29 +581,68 @@ void WebGL::ToggleVertexAttribute(u8 attr, bool enable)
     {
         if (enable)
         {
-            g_glFuncTable.glEnableVertexAttribArray(DIFFUSE_ATTRIBUTE_INDEX);
-            g_glFuncTable.glUniform1i(this->uniforms[UNIFORM_DIFFUSE_FLAG], true);
+            g_glFuncTable.glEnableVertexAttribArray(
+                DIFFUSE_ATTRIBUTE_INDEX
+            );
+
+            g_glFuncTable.glUniform1i(
+                this->uniforms[UNIFORM_DIFFUSE_FLAG],
+                true
+            );
         }
         else
         {
-            g_glFuncTable.glDisableVertexAttribArray(DIFFUSE_ATTRIBUTE_INDEX);
-            g_glFuncTable.glUniform1i(this->uniforms[UNIFORM_DIFFUSE_FLAG], false);
+            g_glFuncTable.glDisableVertexAttribArray(
+                DIFFUSE_ATTRIBUTE_INDEX
+            );
+
+            g_glFuncTable.glUniform1i(
+                this->uniforms[UNIFORM_DIFFUSE_FLAG],
+                false
+            );
         }
     }
 }
 
-void WebGL::SetAttributePointer(VertexAttributeArrays attr, std::size_t stride, void *ptr)
+void WebGL::SetAttributePointer(
+    VertexAttributeArrays attr,
+    std::size_t stride,
+    void *ptr
+)
 {
     switch (attr)
     {
     case VERTEX_ARRAY_POSITION:
-        g_glFuncTable.glVertexAttribPointer(POSITION_ATTRIBUTE_INDEX, 3, GL_FLOAT, false, stride, ptr);
+        g_glFuncTable.glVertexAttribPointer(
+            POSITION_ATTRIBUTE_INDEX,
+            3,
+            GL_FLOAT,
+            false,
+            stride,
+            ptr
+        );
         break;
+
     case VERTEX_ARRAY_TEX_COORD:
-        g_glFuncTable.glVertexAttribPointer(TEX_COORDS_ATTRIBUTE_INDEX, 2, GL_FLOAT, false, stride, ptr);
+        g_glFuncTable.glVertexAttribPointer(
+            TEX_COORDS_ATTRIBUTE_INDEX,
+            2,
+            GL_FLOAT,
+            false,
+            stride,
+            ptr
+        );
         break;
+
     case VERTEX_ARRAY_DIFFUSE:
-        g_glFuncTable.glVertexAttribPointer(DIFFUSE_ATTRIBUTE_INDEX, 4, GL_UNSIGNED_BYTE, true, stride, ptr);
+        g_glFuncTable.glVertexAttribPointer(
+            DIFFUSE_ATTRIBUTE_INDEX,
+            4,
+            GL_UNSIGNED_BYTE,
+            true,
+            stride,
+            ptr
+        );
         break;
     }
 }
@@ -364,23 +654,43 @@ void WebGL::SetColorOp(TextureOpComponent component, ColorOp op)
         return;
     }
 
-    g_glFuncTable.glUniform1i(this->uniforms[UNIFORM_COLOR_OP], op);
+    g_glFuncTable.glUniform1i(
+        this->uniforms[UNIFORM_COLOR_OP],
+        op
+    );
 }
 
 void WebGL::SetTextureFactor(ZunColor factor)
 {
-    g_glFuncTable.glUniform4f(this->uniforms[UNIFORM_ENV_DIFFUSE], ((factor >> 16) & 0xFF) / 255.0f,
-                              ((factor >> 8) & 0xFF) / 255.0f, (factor & 0xFF) / 255.0f,
-                              ((factor >> 24) & 0xFF) / 255.0f);
+    g_glFuncTable.glUniform4f(
+        this->uniforms[UNIFORM_ENV_DIFFUSE],
+        ((factor >> 16) & 0xFF) / 255.0f,
+        ((factor >> 8) & 0xFF) / 255.0f,
+        (factor & 0xFF) / 255.0f,
+        ((factor >> 24) & 0xFF) / 255.0f
+    );
 }
 
-void WebGL::SetTransformMatrix(TransformMatrix type, const ZunMatrix &matrix)
+void WebGL::SetTransformMatrix(
+    TransformMatrix type,
+    const ZunMatrix &matrix
+)
 {
-    // I should probably just remove the model matrix from the range of possibilies
-    static const u32 matrixUniformEnum[4] = {UNIFORM_MODELVIEW, UNIFORM_MODELVIEW, UNIFORM_PROJECTION,
-                                             UNIFORM_TEXTURE_MATRIX};
+    // I should probably just remove the model matrix from the range of possibilities
+    static const u32 matrixUniformEnum[4] =
+    {
+        UNIFORM_MODELVIEW,
+        UNIFORM_MODELVIEW,
+        UNIFORM_PROJECTION,
+        UNIFORM_TEXTURE_MATRIX
+    };
 
-    g_glFuncTable.glUniformMatrix4fv(this->uniforms[matrixUniformEnum[type]], 1, false, (const GLfloat *)&matrix.m);
+    g_glFuncTable.glUniformMatrix4fv(
+        this->uniforms[matrixUniformEnum[type]],
+        1,
+        false,
+        (const GLfloat *)&matrix.m
+    );
 }
 
 void WebGL::Enable(Capabilities cap)
@@ -390,6 +700,7 @@ void WebGL::Enable(Capabilities cap)
     case CAPS_BLEND:
         g_glFuncTable.glEnable(GL_BLEND);
         break;
+
     case CAPS_DEPTH_TEST:
         g_glFuncTable.glEnable(GL_DEPTH_TEST);
         break;
@@ -403,38 +714,70 @@ bool WebGL::HasError()
 
 void WebGL::SetTextureFilter()
 {
-    g_glFuncTable.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    g_glFuncTable.glTexParameteri(
+        GL_TEXTURE_2D,
+        GL_TEXTURE_MIN_FILTER,
+        GL_LINEAR
+    );
 }
 
 void WebGL::GetViewport(u32 *viewport)
 {
-    g_glFuncTable.glGetIntegerv(GL_VIEWPORT, (GLint *)viewport);
+    g_glFuncTable.glGetIntegerv(
+        GL_VIEWPORT,
+        (GLint *)viewport
+    );
 }
 
 void WebGL::GetDepthRange(f32 *depthRange)
 {
-    g_glFuncTable.glGetFloatv(GL_DEPTH_RANGE, depthRange);
+    g_glFuncTable.glGetFloatv(
+        GL_DEPTH_RANGE,
+        depthRange
+    );
 }
 
-void WebGL::SetViewport(i32 x, i32 y, i32 width, i32 height)
+void WebGL::SetViewport(
+    i32 x,
+    i32 y,
+    i32 width,
+    i32 height
+)
 {
-    g_glFuncTable.glViewport(x, y, width, height);
+    g_glFuncTable.glViewport(
+        x,
+        y,
+        width,
+        height
+    );
 }
 
-void WebGL::SetDepthRange(f32 nearPlane, f32 farPlane)
+void WebGL::SetDepthRange(
+    f32 nearPlane,
+    f32 farPlane
+)
 {
-    g_glFuncTable.glDepthRangef(nearPlane, farPlane);
+    g_glFuncTable.glDepthRangef(
+        nearPlane,
+        farPlane
+    );
 }
 
 void WebGL::SetBlendMode(BlendMode mode)
 {
     if (mode == BLEND_INV_SRC_ALPHA)
     {
-        g_glFuncTable.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        g_glFuncTable.glBlendFunc(
+            GL_SRC_ALPHA,
+            GL_ONE_MINUS_SRC_ALPHA
+        );
     }
     else
     {
-        g_glFuncTable.glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        g_glFuncTable.glBlendFunc(
+            GL_SRC_ALPHA,
+            GL_ONE
+        );
     }
 }
 
@@ -443,9 +786,19 @@ void WebGL::SetClearDepth(f32 depth)
     g_glFuncTable.glClearDepthf(depth);
 }
 
-void WebGL::SetClearColor(f32 r, f32 g, f32 b, f32 a)
+void WebGL::SetClearColor(
+    f32 r,
+    f32 g,
+    f32 b,
+    f32 a
+)
 {
-    g_glFuncTable.glClearColor(r, g, b, a);
+    g_glFuncTable.glClearColor(
+        r,
+        g,
+        b,
+        a
+    );
 }
 
 void WebGL::Clear(u32 clearBits)
@@ -453,9 +806,14 @@ void WebGL::Clear(u32 clearBits)
     GLbitfield mask = 0;
 
     if (clearBits & CLEAR_COLOR_BUFFER)
+    {
         mask |= GL_COLOR_BUFFER_BIT;
+    }
+
     if (clearBits & CLEAR_DEPTH_BUFFER)
+    {
         mask |= GL_DEPTH_BUFFER_BIT;
+    }
 
     g_glFuncTable.glClear(mask);
 }
@@ -476,24 +834,42 @@ void WebGL::SetDepthFunc(DepthFunc func)
         g_glFuncTable.glDepthFunc(GL_LEQUAL);
     }
 }
+
 GfxTextureHandle WebGL::CreateTexture()
 {
     GLuint texture;
-    g_glFuncTable.glGenTextures(1, &texture);
+
+    g_glFuncTable.glGenTextures(
+        1,
+        &texture
+    );
+
     return texture;
 }
 
 void WebGL::BindTexture(GfxTextureHandle handle)
 {
-    g_glFuncTable.glBindTexture(GL_TEXTURE_2D, handle);
+    g_glFuncTable.glBindTexture(
+        GL_TEXTURE_2D,
+        handle
+    );
 }
 
 void WebGL::DeleteTexture(GfxTextureHandle handle)
 {
-    g_glFuncTable.glDeleteTextures(1, (GLuint *)&handle);
+    g_glFuncTable.glDeleteTextures(
+        1,
+        (GLuint *)&handle
+    );
 }
 
-void WebGL::SetTextureImage(u32 width, u32 height, PixelFormat fmt, PixelDataType type, const void *data)
+void WebGL::SetTextureImage(
+    u32 width,
+    u32 height,
+    PixelFormat fmt,
+    PixelDataType type,
+    const void *data
+)
 {
     GLenum glFmt;
     GLenum glType;
@@ -503,6 +879,7 @@ void WebGL::SetTextureImage(u32 width, u32 height, PixelFormat fmt, PixelDataTyp
     case PIXEL_RGBA:
         glFmt = GL_RGBA;
         break;
+
     case PIXEL_RGB:
         glFmt = GL_RGB;
         break;
@@ -513,31 +890,78 @@ void WebGL::SetTextureImage(u32 width, u32 height, PixelFormat fmt, PixelDataTyp
     case PIXEL_UNSIGNED_BYTE:
         glType = GL_UNSIGNED_BYTE;
         break;
+
     case PIXEL_UNSIGNED_SHORT_5_5_5_1:
         glType = GL_UNSIGNED_SHORT_5_5_5_1;
         break;
+
     case PIXEL_UNSIGNED_SHORT_5_6_5:
         glType = GL_UNSIGNED_SHORT_5_6_5;
         break;
+
     case PIXEL_UNSIGNED_SHORT_4_4_4_4:
         glType = GL_UNSIGNED_SHORT_4_4_4_4;
         break;
     }
 
-    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, glFmt, width, height, 0, glFmt, glType, data);
+    g_glFuncTable.glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        glFmt,
+        width,
+        height,
+        0,
+        glFmt,
+        glType,
+        data
+    );
 }
 
-void WebGL::SetTextureSubImage(i32 xoffset, i32 yoffset, i32 width, i32 height, const void *data)
+void WebGL::SetTextureSubImage(
+    i32 xoffset,
+    i32 yoffset,
+    i32 width,
+    i32 height,
+    const void *data
+)
 {
-    g_glFuncTable.glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, width, height, GL_RGB, GL_UNSIGNED_BYTE, data);
+    g_glFuncTable.glTexSubImage2D(
+        GL_TEXTURE_2D,
+        0,
+        xoffset,
+        yoffset,
+        width,
+        height,
+        GL_RGB,
+        GL_UNSIGNED_BYTE,
+        data
+    );
 }
 
-void WebGL::ReadPixels(i32 x, i32 y, i32 width, i32 height, const void *pixels)
+void WebGL::ReadPixels(
+    i32 x,
+    i32 y,
+    i32 width,
+    i32 height,
+    const void *pixels
+)
 {
-    g_glFuncTable.glReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, (void *)pixels);
+    g_glFuncTable.glReadPixels(
+        x,
+        y,
+        width,
+        height,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        (void *)pixels
+    );
 }
 
-void WebGL::Draw(PrimitiveType type, i32 start, i32 count)
+void WebGL::Draw(
+    PrimitiveType type,
+    i32 start,
+    i32 count
+)
 {
     GLenum glPrim;
 
@@ -546,12 +970,17 @@ void WebGL::Draw(PrimitiveType type, i32 start, i32 count)
     case PRIM_TRIANGLE_STRIP:
         glPrim = GL_TRIANGLE_STRIP;
         break;
+
     case PRIM_TRIANGLES:
         glPrim = GL_TRIANGLES;
         break;
     }
 
-    g_glFuncTable.glDrawArrays(glPrim, start, count);
+    g_glFuncTable.glDrawArrays(
+        glPrim,
+        start,
+        count
+    );
 }
 
 void WebGL::SwapBuffers()
